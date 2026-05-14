@@ -830,6 +830,46 @@ def inject_css():
                 grid-template-columns: 1fr;
             }
         }
+        /* FIX: cleaner Streamlit tabs, no red underline, readable active tab */
+        .stTabs [data-baseweb="tab-highlight"] {
+            display: none !important;
+            background: transparent !important;
+        }
+
+        .stTabs [data-baseweb="tab-border"] {
+            display: none !important;
+        }
+
+        .stTabs [data-baseweb="tab"] {
+            color: #0B1020 !important;
+            border-radius: 18px !important;
+            border: 1px solid transparent !important;
+            transition: all .24s ease !important;
+        }
+
+        .stTabs [data-baseweb="tab"] p,
+        .stTabs [data-baseweb="tab"] span {
+            color: #0B1020 !important;
+            font-weight: 800 !important;
+        }
+
+        .stTabs [aria-selected="true"] {
+            background: #101828 !important;
+            border-color: #101828 !important;
+            box-shadow: 0 14px 30px rgba(16,24,40,0.18) !important;
+        }
+
+        .stTabs [aria-selected="true"] p,
+        .stTabs [aria-selected="true"] span {
+            color: #FFFFFF !important;
+        }
+
+        .stTabs [data-baseweb="tab-list"] {
+            border-radius: 28px !important;
+            padding: 10px !important;
+            overflow: hidden !important;
+        }
+
         </style>
         """,
         unsafe_allow_html=True,
