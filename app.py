@@ -43,7 +43,7 @@ st.set_page_config(
 )
 
 if "active_workspace" not in st.session_state:
-    st.session_state.active_workspace = "pdf"
+    st.session_state.active_workspace = "home"
 
 if "active_pdf_tool" not in st.session_state:
     st.session_state.active_pdf_tool = "image_to_pdf"
@@ -733,16 +733,19 @@ def split_pdf(pdf_file, range_text: str) -> Tuple[bytes, int, int]:
 
 # ---------- UI ----------
 def render_header() -> None:
-    workspace_labels = {"pdf": "PDF Workspace", "video": "Video & Audio", "image": "Image Tools", "office": "Office Convert"}
+    workspace_labels = {"home": "Start", "pdf": "PDF Workspace", "video": "Video & Audio", "image": "Image Tools", "office": "Office Convert"}
+    is_home = st.session_state.active_workspace == "home"
+    headline = "Was möchtest du bearbeiten?" if is_home else workspace_labels.get(st.session_state.active_workspace, "PDF Workspace")
+    subline = "Wähle zuerst einen Bereich. Danach lädt nur der passende Workspace — schneller, sauberer, übersichtlicher." if is_home else "Du bist jetzt im gewählten Workspace. Mit Zurück kommst du wieder zur Auswahl."
     st.markdown(
         f"""
         <div class="wf-topbar">
             <div class="wf-brand"><div class="wf-logo"></div><div>Wertfile.</div></div>
-            <div class="wf-version"><span class="wf-dot"></span>1.3 · {workspace_labels.get(st.session_state.active_workspace, 'PDF Workspace')}</div>
+            <div class="wf-version"><span class="wf-dot"></span>1.3 · {workspace_labels.get(st.session_state.active_workspace, 'Start')}</div>
         </div>
         <section class="wf-hero">
-            <h1>Ein Workspace.<br><span class="wf-gradient">Alle wichtigen Datei-Tools.</span></h1>
-            <p>Starte mit einem Bereich und nutze genau das Tool, das du brauchst: PDF, Video & Audio, Bilder oder Office-Konvertierung.</p>
+            <h1>{headline}<br><span class="wf-gradient">Schnell und clean.</span></h1>
+            <p>{subline}</p>
         </section>
         """,
         unsafe_allow_html=True,
@@ -750,30 +753,44 @@ def render_header() -> None:
 
 
 def render_workspace_selector() -> None:
-    active = st.session_state.active_workspace
-    cls = {
-        "pdf": "active-pdf" if active == "pdf" else "",
-        "video": "active-video" if active == "video" else "",
-        "image": "active-image" if active == "image" else "",
-        "office": "active-office" if active == "office" else "",
-    }
     st.markdown(
-        f"""
-        <div class="wf-section-title"><div><h2>Was möchtest du bearbeiten?</h2><p>Vier Bereiche für schnelle Orientierung.</p></div></div>
+        """
+        <div class="wf-section-title"><div><h2>Wähle deinen Workspace</h2><p>Erst auswählen, dann kommt nur die passende Seite. Das hält Wertfile schnell.</p></div></div>
         <div class="wf-workspace-grid">
-            <div class="wf-workspace-card {cls['pdf']}"><div class="wf-orb"></div><h3>PDF Workspace</h3><p>Zusammenführen, teilen und konvertieren.</p><div class="wf-tags"><span class="wf-tag">Merge</span><span class="wf-tag">Split</span><span class="wf-tag">Word</span></div></div>
-            <div class="wf-workspace-card {cls['video']}"><div class="wf-orb video"></div><h3>Video & Audio</h3><p>MP3, MP4 und Komprimierung.</p><div class="wf-tags"><span class="wf-tag">MP3</span><span class="wf-tag">MP4</span><span class="wf-tag">Coming soon</span></div></div>
-            <div class="wf-workspace-card {cls['image']}"><div class="wf-orb image"></div><h3>Image Tools</h3><p>Bilder konvertieren und optimieren.</p><div class="wf-tags"><span class="wf-tag">JPG</span><span class="wf-tag">PNG</span><span class="wf-tag">WEBP</span></div></div>
-            <div class="wf-workspace-card {cls['office']}"><div class="wf-orb office"></div><h3>Office Convert</h3><p>Word, Excel und PowerPoint Workflows.</p><div class="wf-tags"><span class="wf-tag">Word</span><span class="wf-tag">Excel</span><span class="wf-tag">PDF</span></div></div>
+            <div class="wf-workspace-card active-pdf"><div class="wf-orb"></div><h3>PDF Workspace</h3><p>Zusammenführen, teilen und konvertieren.</p><div class="wf-tags"><span class="wf-tag">Merge</span><span class="wf-tag">Split</span><span class="wf-tag">Word</span></div></div>
+            <div class="wf-workspace-card active-video"><div class="wf-orb video"></div><h3>Video & Audio</h3><p>MP3, MP4 und Komprimierung.</p><div class="wf-tags"><span class="wf-tag">MP3</span><span class="wf-tag">MP4</span><span class="wf-tag">Soon</span></div></div>
+            <div class="wf-workspace-card active-image"><div class="wf-orb image"></div><h3>Image Tools</h3><p>Bilder konvertieren und optimieren.</p><div class="wf-tags"><span class="wf-tag">JPG</span><span class="wf-tag">PNG</span><span class="wf-tag">WEBP</span></div></div>
+            <div class="wf-workspace-card active-office"><div class="wf-orb office"></div><h3>Office Convert</h3><p>Word, Excel und PowerPoint Workflows.</p><div class="wf-tags"><span class="wf-tag">Word</span><span class="wf-tag">Excel</span><span class="wf-tag">PDF</span></div></div>
         </div>
         """,
         unsafe_allow_html=True,
     )
-    labels = ["PDF", "Video & Audio", "Image Tools", "Office Convert"]
-    workspace_map = {"PDF": "pdf", "Video & Audio": "video", "Image Tools": "image", "Office Convert": "office"}
-    reverse_map = {v: k for k, v in workspace_map.items()}
-    selected = st.radio("Workspace auswählen", labels, index=labels.index(reverse_map.get(active, "PDF")), horizontal=True, label_visibility="collapsed")
-    st.session_state.active_workspace = workspace_map[selected]
+
+    c1, c2, c3, c4 = st.columns(4)
+    with c1:
+        if st.button("PDF öffnen", use_container_width=True):
+            st.session_state.active_workspace = "pdf"
+            st.rerun()
+    with c2:
+        if st.button("Video öffnen", use_container_width=True):
+            st.session_state.active_workspace = "video"
+            st.rerun()
+    with c3:
+        if st.button("Image öffnen", use_container_width=True):
+            st.session_state.active_workspace = "image"
+            st.rerun()
+    with c4:
+        if st.button("Office öffnen", use_container_width=True):
+            st.session_state.active_workspace = "office"
+            st.rerun()
+
+
+def render_workspace_back() -> None:
+    c1, c2 = st.columns([1, 4])
+    with c1:
+        if st.button("← Zur Auswahl", use_container_width=True):
+            st.session_state.active_workspace = "home"
+            st.rerun()
 
 
 def render_pdf_tool_selector() -> None:
@@ -1091,16 +1108,18 @@ def render_footer() -> None:
 # ---------- Render ----------
 inject_css()
 render_header()
-render_workspace_selector()
 
-if st.session_state.active_workspace == "pdf":
-    render_pdf_workspace()
-elif st.session_state.active_workspace == "video":
-    render_coming_soon_workspace("Video & Audio", "Video zu MP3/MP4, Audio extrahieren und Komprimierung. Geplant für Version 1.5.", ["MP3", "MP4", "Compress", "Upload"], "video")
-elif st.session_state.active_workspace == "image":
-    render_coming_soon_workspace("Image Tools", "Bilder konvertieren, verkleinern, komprimieren und vorbereiten. Geplant nach PDF Compress.", ["JPG", "PNG", "WEBP", "Resize"], "image")
+if st.session_state.active_workspace == "home":
+    render_workspace_selector()
 else:
-    render_coming_soon_workspace("Office Convert", "Word, Excel, PowerPoint und HTML sauber in PDF umwandeln. Geplant nach den Kern-PDF-Tools.", ["Word", "Excel", "PowerPoint", "PDF"], "office")
+    render_workspace_back()
+    if st.session_state.active_workspace == "pdf":
+        render_pdf_workspace()
+    elif st.session_state.active_workspace == "video":
+        render_coming_soon_workspace("Video & Audio", "Video zu MP3/MP4, Audio extrahieren und Komprimierung. Geplant für Version 1.5.", ["MP3", "MP4", "Compress", "Upload"], "video")
+    elif st.session_state.active_workspace == "image":
+        render_coming_soon_workspace("Image Tools", "Bilder konvertieren, verkleinern, komprimieren und vorbereiten. Geplant nach PDF Compress.", ["JPG", "PNG", "WEBP", "Resize"], "image")
+    else:
+        render_coming_soon_workspace("Office Convert", "Word, Excel, PowerPoint und HTML sauber in PDF umwandeln. Geplant nach den Kern-PDF-Tools.", ["Word", "Excel", "PowerPoint", "PDF"], "office")
 
-render_test_plan()
 render_footer()
