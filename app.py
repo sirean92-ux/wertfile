@@ -473,8 +473,9 @@ def install_missing_packages(packages: List[str]) -> Tuple[bool, str]:
     try:
         command = [sys.executable, "-m", "pip", "install", *packages]
         result = subprocess.run(command, capture_output=True, text=True, timeout=180)
-        output = (result.stdout or "") + "
-" + (result.stderr or "")
+        stdout = result.stdout or ""
+        stderr = result.stderr or ""
+        output = stdout + chr(10) + stderr
         return result.returncode == 0, output
     except Exception as exc:
         return False, str(exc)
