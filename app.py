@@ -705,6 +705,107 @@ def inject_css():
             font-size: 13px;
         }
 
+        /* EASY UPDATE: mehr Sichtbarkeit + Bewegung + Liquid Glass */
+        @keyframes wf-orb-float {
+            0%, 100% { transform: translateY(0) rotate(0deg) scale(1); }
+            50% { transform: translateY(-7px) rotate(3deg) scale(1.04); }
+        }
+
+        .wf-orb {
+            animation: wf-orb-float 5.5s ease-in-out infinite;
+            transition: transform .3s ease, filter .3s ease;
+        }
+
+        .wf-orb:hover {
+            animation-play-state: paused;
+            transform: translateY(-9px) rotate(5deg) scale(1.09);
+            filter: saturate(1.18) contrast(1.05);
+        }
+
+        .wf-tool-shell,
+        .wf-module-card,
+        .wf-preview-box,
+        .wf-trust-card {
+            background: linear-gradient(145deg, rgba(255,255,255,0.92), rgba(255,255,255,0.62)) !important;
+            border: 1px solid rgba(255,255,255,0.76) !important;
+            backdrop-filter: blur(22px) saturate(1.25);
+            -webkit-backdrop-filter: blur(22px) saturate(1.25);
+            box-shadow:
+                inset 0 1px 0 rgba(255,255,255,0.85),
+                0 22px 60px rgba(15,23,42,0.10) !important;
+            transition: transform .28s ease, box-shadow .28s ease;
+        }
+
+        .wf-tool-shell:hover,
+        .wf-module-card:hover,
+        .wf-preview-box:hover,
+        .wf-trust-card:hover {
+            transform: translateY(-4px) scale(1.006);
+            box-shadow:
+                inset 0 1px 0 rgba(255,255,255,0.92),
+                0 30px 80px rgba(15,23,42,0.14) !important;
+        }
+
+        .stTextInput input,
+        .stSelectbox [data-baseweb="select"],
+        .stSelectbox [data-baseweb="select"] > div {
+            min-height: 56px !important;
+            border-radius: 18px !important;
+            border: 1px solid rgba(100,116,139,0.42) !important;
+            background: rgba(255,255,255,0.96) !important;
+            color: #0B1020 !important;
+            font-weight: 800 !important;
+            box-shadow:
+                inset 0 1px 0 rgba(255,255,255,0.95),
+                0 14px 34px rgba(15,23,42,0.09) !important;
+        }
+
+        .stTextInput input:focus,
+        .stSelectbox [data-baseweb="select"]:focus-within {
+            border-color: rgba(29,78,216,0.65) !important;
+            box-shadow:
+                0 0 0 5px rgba(29,78,216,0.10),
+                0 18px 44px rgba(15,23,42,0.12) !important;
+        }
+
+        .stTextInput input::placeholder {
+            color: #94A3B8 !important;
+            font-weight: 700 !important;
+        }
+
+        .stFileUploader section {
+            border: 1.5px dashed rgba(100,116,139,0.42) !important;
+            background: linear-gradient(145deg, rgba(255,255,255,0.94), rgba(255,255,255,0.68)) !important;
+            box-shadow:
+                inset 0 1px 0 rgba(255,255,255,0.9),
+                0 18px 48px rgba(15,23,42,0.09) !important;
+        }
+
+        .stFileUploader svg,
+        .stSelectbox svg,
+        .stTextInput svg {
+            color: #0F172A !important;
+            fill: #0F172A !important;
+            opacity: 1 !important;
+            filter: drop-shadow(0 3px 6px rgba(15,23,42,0.18));
+        }
+
+        .stFileUploader section svg {
+            transform: scale(1.16);
+            padding: 10px;
+            border-radius: 18px;
+            background: rgba(255,255,255,0.82);
+            box-shadow: 0 12px 28px rgba(15,23,42,0.12);
+        }
+
+        .stFileUploader button {
+            border-radius: 14px !important;
+            border: 1px solid rgba(100,116,139,0.35) !important;
+            background: rgba(255,255,255,0.96) !important;
+            color: #0B1020 !important;
+            font-weight: 850 !important;
+        }
+
         @media (max-width: 980px) {
             .wf-hero {
                 grid-template-columns: 1fr;
@@ -1101,9 +1202,9 @@ hero()
 module_cards()
 
 tab_pdf, tab_video, tab_security = st.tabs([
-    "📄 Document Converter",
-    "🎥 Video Tools",
-    "🔐 Security",
+    "Document Converter",
+    "Video Tools",
+    "Security",
 ])
 
 with tab_pdf:
