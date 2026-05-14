@@ -150,4 +150,4 @@ with col2:
 st.markdown('</div>', unsafe_allow_html=True) 
 
 # Footer
-st.markdown("<p style='text-align: center; color: #9CA3AF; font-size: 13px; margin-top: 10
+st.markdown("<p style='text-align: center; color: #9CA3AF; font-size: 13px; margin-top: 100px; padding-bottom: 50px;'>Wertfile. – 100% Privacy-Focused File Processing.</p>", unsafe_allow_html=True)
