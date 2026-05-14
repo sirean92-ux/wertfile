@@ -1,121 +1,62 @@
 import streamlit as st
+from PIL import Image
+import io
 
-# --- WERTFILE BRANDING SETUP ---
-st.set_page_config(
-    page_title="Wertfile | Deutsche Datei-Werkzeuge", 
-    page_icon="🛡️", 
-    layout="centered"
-)
+# Branding & Layout
+st.set_page_config(page_title="Wertfile | Werkzeuge", page_icon="🛡️")
 
-# Custom CSS für den Finom-Look (Minimalismus pur)
+# Finom-Style Design
 st.markdown("""
     <style>
-    /* Schriftart importieren */
-    @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;800&display=swap');
-    
-    /* Globales Styling */
-    html, body, [class*="css"] {
-        font-family: 'Plus Jakarta Sans', sans-serif;
-        background-color: #FFFFFF;
-        color: #111827;
-    }
-
-    /* Streamlit Branding verstecken für Profi-Look */
-    #MainMenu {visibility: hidden;}
-    footer {visibility: hidden;}
-    header {visibility: hidden;}
-
-    /* Button Styling (Finom-Black) */
-    .stButton>button {
-        width: 100%;
-        border-radius: 8px;
-        background-color: #000000;
-        color: #FFFFFF;
-        border: 1px solid #000000;
-        padding: 12px 20px;
-        font-weight: 600;
-        font-size: 15px;
-        transition: all 0.2s ease;
-        margin-bottom: 10px;
-    }
-    .stButton>button:hover {
-        background-color: #FFFFFF;
-        color: #000000;
-        border: 1px solid #000000;
-    }
-
-    /* Header Design */
-    .brand-title {
-        font-size: 52px;
-        font-weight: 800;
-        letter-spacing: -2px;
-        margin-bottom: 0px;
-        color: #000000;
-    }
-    .brand-subtitle {
-        font-size: 18px;
-        color: #6B7280;
-        margin-top: -10px;
-        margin-bottom: 40px;
-    }
-    .germany-badge {
-        background-color: #F3F4F6;
-        color: #111827;
-        padding: 4px 10px;
-        border-radius: 5px;
-        font-size: 11px;
-        font-weight: 700;
-        text-transform: uppercase;
-    }
-    
-    /* Trenner */
-    hr {
-        margin-top: 2rem;
-        margin-bottom: 2rem;
-        border: 0;
-        border-top: 1px solid #F3F4F6;
-    }
+    @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;700&display=swap');
+    html, body, [class*="css"] { font-family: 'Plus Jakarta Sans', sans-serif; }
+    .stButton>button { width: 100%; border-radius: 8px; background-color: #000000; color: white; padding: 10px; border: none; font-weight: 700; }
+    .stButton>button:hover { background-color: #333333; color: white; }
+    .brand-title { font-size: 42px; font-weight: 800; letter-spacing: -1px; margin-bottom: 0px; }
     </style>
     """, unsafe_allow_html=True)
 
-# --- HEADER SEKTION ---
-st.markdown('<span class="germany-badge">🛡️ Made in Germany</span>', unsafe_allow_html=True)
-st.markdown('<h1 class="brand-title">Wertfile</h1>', unsafe_allow_html=True)
-st.markdown('<p class="brand-subtitle">Sichere Werkzeuge. Maximale Privatsphäre. Keine Speicherung.</p>', unsafe_allow_html=True)
+st.markdown('<h1 class="brand-title">Wertfile 🛡️</h1>', unsafe_allow_html=True)
+st.caption("Sichere Datei-Werkzeuge | Made in Germany")
 
-# --- TOOL GRID (2 Spalten) ---
-col1, col2 = st.columns(2, gap="large")
+st.markdown("---")
 
-with col1:
-    st.markdown("#### 📄 Dokumente")
-    if st.button("JPEG → PDF"):
-        st.toast("Werkzeug wird geladen...")
-    if st.button("PDF Verkleinern"):
-        st.toast("Werkzeug wird geladen...")
-    if st.button("Metadaten löschen"):
-        st.toast("Sicherheits-Tool startet...")
+# Navigation
+tabs = st.radio("Wähle ein Tool:", ["🏠 Start", "📄 JPEG → PDF", "🎥 Video (Bald)"], horizontal=True)
 
-with col2:
-    st.markdown("#### 🎥 Media")
-    if st.button("YouTube Downloader"):
-        st.toast("Bereite sicheren Download vor...")
-    if st.button("Vocal Remover"):
-        st.toast("KI-Analyse startet...")
-    if st.button("Video → MP3"):
-        st.toast("Konverter lädt...")
+if tabs == "🏠 Start":
+    st.write("### Willkommen")
+    st.info("Deine Dateien werden nur im Arbeitsspeicher verarbeitet und niemals gespeichert. 100% Privatsphäre.")
 
-st.markdown("<hr>", unsafe_allow_html=True)
+elif tabs == "📄 JPEG → PDF":
+    st.write("### 📄 Bilder in PDF umwandeln")
+    
+    # Der Datei-Uploader (Hier passiert die Magie)
+    uploaded_files = st.file_uploader("Bilder hier reinziehen oder klicken", type=['jpg', 'jpeg', 'png'], accept_multiple_files=True)
 
-# --- ADSENSE / INFO BOX ---
-st.markdown("""
-    <div style="background-color: #F9FAFB; padding: 50px; border-radius: 12px; text-align: center; border: 1px solid #F3F4F6;">
-        <p style="color: #9CA3AF; font-size: 14px; font-weight: 500;">
-            Hier erscheint später die AdSense Werbung.<br>
-            (Einnahmen finanzieren die deutschen Server)
-        </p>
-    </div>
-    """, unsafe_allow_html=True)
+    if uploaded_files:
+        if st.button("Jetzt PDF erstellen"):
+            with st.spinner("Bilder werden verarbeitet..."):
+                try:
+                    images = []
+                    for uploaded_file in uploaded_files:
+                        img = Image.open(uploaded_file)
+                        if img.mode in ("RGBA", "P"): # PNG Transparenz entfernen
+                            img = img.convert('RGB')
+                        images.append(img)
+                    
+                    # PDF im Speicher erstellen
+                    pdf_buffer = io.BytesIO()
+                    images[0].save(pdf_buffer, format="PDF", save_all=True, append_images=images[1:])
+                    
+                    st.success("Erfolgreich konvertiert!")
+                    st.download_button(
+                        label="📥 PDF herunterladen",
+                        data=pdf_buffer.getvalue(),
+                        file_name="wertfile_export.pdf",
+                        mime="application/pdf"
+                    )
+                except Exception as e:
+                    st.error(f"Fehler: {e}")
 
-# --- FOOTER ---
-st.markdown("<br><br>", unsafe_allow_html=True)
-st.caption("© 2026 Wertfile.de – Ein Projekt von Ilangai. Alle Prozesse sind DSGVO-konform verschlüsselt.")
+st.markdown("<br><br><p style='text-align:center; color:gray; font-size:12px;'>© 2026 Wertfile – Keine Datenspeicherung.</p>", unsafe_allow_html=True)
