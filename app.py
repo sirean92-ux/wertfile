@@ -353,6 +353,60 @@ def inject_css() -> None:
             font-weight: 700 !important;
         }
 
+        .stFileUploader button,
+        .stFileUploader [data-testid="baseButton-secondary"],
+        .stFileUploader [data-testid="stBaseButton-secondary"] {
+            border-radius: 14px !important;
+            min-height: 44px !important;
+            border: 1px solid rgba(37,99,235,0.24) !important;
+            background: linear-gradient(135deg, #EFF6FF 0%, #F5F3FF 100%) !important;
+            color: #1D4ED8 !important;
+            font-weight: 850 !important;
+            box-shadow: 0 8px 20px rgba(37,99,235,0.10) !important;
+        }
+
+        .stFileUploader button:hover,
+        .stFileUploader [data-testid="baseButton-secondary"]:hover,
+        .stFileUploader [data-testid="stBaseButton-secondary"]:hover {
+            border-color: rgba(37,99,235,0.40) !important;
+            background: linear-gradient(135deg, #DBEAFE 0%, #EDE9FE 100%) !important;
+            color: #1E40AF !important;
+        }
+
+        .stRadio > label {
+            display: none !important;
+        }
+
+        .stRadio div[role="radiogroup"] {
+            display: grid !important;
+            grid-template-columns: repeat(2, 1fr) !important;
+            gap: 12px !important;
+            margin-bottom: 16px !important;
+        }
+
+        .stRadio div[role="radiogroup"] label {
+            background: #FFFFFF !important;
+            border: 1px solid #E2E8F0 !important;
+            border-radius: 18px !important;
+            padding: 14px 16px !important;
+            box-shadow: 0 8px 22px rgba(15,23,42,0.04) !important;
+        }
+
+        .stRadio div[role="radiogroup"] label:has(input:checked) {
+            background: linear-gradient(135deg, #EFF6FF 0%, #F5F3FF 100%) !important;
+            border-color: rgba(37,99,235,0.36) !important;
+            box-shadow: 0 12px 30px rgba(37,99,235,0.10) !important;
+        }
+
+        .stRadio div[role="radiogroup"] label p {
+            color: #0F172A !important;
+            font-weight: 850 !important;
+        }
+
+        .stRadio input {
+            accent-color: #2563EB !important;
+        }
+
         .stButton > button,
         .stDownloadButton > button {
             border-radius: 14px !important;
@@ -634,28 +688,17 @@ def render_header() -> None:
 
 
 def render_tool_selector() -> None:
-    active_image = "active-blue" if st.session_state.active_tool == "image_to_pdf" else ""
-    active_word = "active-purple" if st.session_state.active_tool == "pdf_to_word" else ""
+    current_label = "Bild → PDF" if st.session_state.active_tool == "image_to_pdf" else "PDF → Word"
 
-    st.markdown(
-        f"""
-        <div class="wf-tool-strip">
-            <div class="wf-tool-box {active_image}"><b>Bild → PDF</b><span>JPG, PNG oder WEBP als PDF exportieren.</span></div>
-            <div class="wf-tool-box {active_word}"><b>PDF → Word</b><span>Text-PDFs als DOCX herunterladen.</span></div>
-        </div>
-        """,
-        unsafe_allow_html=True,
+    selected_tool = st.radio(
+        "Tool auswählen",
+        ["Bild → PDF", "PDF → Word"],
+        index=0 if current_label == "Bild → PDF" else 1,
+        horizontal=True,
+        label_visibility="collapsed",
     )
 
-    c1, c2 = st.columns(2)
-    with c1:
-        if st.button("Bild → PDF", use_container_width=True):
-            st.session_state.active_tool = "image_to_pdf"
-            st.rerun()
-    with c2:
-        if st.button("PDF → Word", use_container_width=True):
-            st.session_state.active_tool = "pdf_to_word"
-            st.rerun()
+    st.session_state.active_tool = "image_to_pdf" if selected_tool == "Bild → PDF" else "pdf_to_word"
 
 
 def render_image_to_pdf_converter() -> None:
