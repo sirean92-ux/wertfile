@@ -503,6 +503,43 @@ def mb(size_bytes: int) -> float:
     return size_bytes / (1024 * 1024)
 
 
+class CachedUpload(io.BytesIO):
+    def __init__(self, data: bytes, name: str, file_type: str = "application/pdf"):
+        super().__init__(data)
+        self.name = name
+        self.type = file_type
+        self.size = len(data)
+
+
+def cache_files(cache_key: str, uploaded_files) -> None:
+    if not uploaded_files:
+        return
+
+    files = uploaded_files if isinstance(uploaded_files, list) else [uploaded_files]
+    cached = []
+    for file in files:
+        file.seek(0)
+        data = file.read()
+        cached.append({
+            "name": file.name,
+            "type": getattr(file, "type", "application/octet-stream"),
+            "data": data,
+        })
+        file.seek(0)
+
+    st.session_state[cache_key] = cached
+
+
+def get_cached_files(cache_key: str) -> List[CachedUpload]:
+    cached = st.session_state.get(cache_key, [])
+    return [CachedUpload(item["data"], item["name"], item.get("type", "application/pdf")) for item in cached]
+
+
+def clear_cached_files(cache_key: str) -> None:
+    if cache_key in st.session_state:
+        del st.session_state[cache_key]
+
+
 def validate_image_files(uploaded_files) -> Tuple[List[str], List[str]]:
     warnings = []
     errors = []
@@ -840,7 +877,15 @@ def render_image_to_pdf_converter() -> None:
         st.markdown('<div class="wf-card">', unsafe_allow_html=True)
         st.markdown("<h2>Bild → PDF</h2>", unsafe_allow_html=True)
         st.markdown('<p class="wf-card-subtitle">Bilder hochladen, Einstellungen wählen, PDF herunterladen.</p>', unsafe_allow_html=True)
-        uploaded_files = st.file_uploader("Bilder hochladen", type=SUPPORTED_IMAGE_TYPES, accept_multiple_files=True, help=f"Unterstützt: {', '.join(SUPPORTED_IMAGE_TYPES).upper()} · Max. {MAX_FILES} Dateien · max. {MAX_TOTAL_MB} MB gesamt.")
+        uploaded_now = st.file_uploader("Bilder hochladen", type=SUPPORTED_IMAGE_TYPES, accept_multiple_files=True, help=f"Unterstützt: {', '.join(SUPPORTED_IMAGE_TYPES).upper()} · Max. {MAX_FILES} Dateien · max. {MAX_TOTAL_MB} MB gesamt.", key="image_to_pdf_upload")
+        if uploaded_now:
+            cache_files("image_to_pdf_files", uploaded_now)
+        uploaded_files = get_cached_files("image_to_pdf_files")
+        if uploaded_files:
+            st.caption("Bilder bleiben beim Wechsel zwischen Tools erhalten.")
+            if st.button("Gemerkte Bilder entfernen", use_container_width=True):
+                clear_cached_files("image_to_pdf_files")
+                st.rerun()
         warnings, errors = validate_image_files(uploaded_files)
         for warning in warnings:
             st.warning(warning)
@@ -921,7 +966,16 @@ def render_pdf_to_word_converter() -> None:
         st.markdown('<div class="wf-card">', unsafe_allow_html=True)
         st.markdown("<h2>PDF → Word</h2>", unsafe_allow_html=True)
         st.markdown('<p class="wf-card-subtitle">Für Text-PDFs. Gescannte PDFs brauchen später OCR.</p>', unsafe_allow_html=True)
-        pdf_file = st.file_uploader("PDF hochladen", type=SUPPORTED_PDF_TYPES, accept_multiple_files=False, help="Funktioniert am besten mit PDFs, deren Text markierbar/kopierbar ist.")
+        uploaded_now = st.file_uploader("PDF hochladen", type=SUPPORTED_PDF_TYPES, accept_multiple_files=False, help="Funktioniert am besten mit PDFs, deren Text markierbar/kopierbar ist.", key="pdf_to_word_upload")
+        if uploaded_now:
+            cache_files("pdf_to_word_file", uploaded_now)
+        cached_word_pdfs = get_cached_files("pdf_to_word_file")
+        pdf_file = cached_word_pdfs[0] if cached_word_pdfs else None
+        if pdf_file:
+            st.caption(f"Gemerkte PDF: {pdf_file.name}. Sie bleibt beim Wechsel zwischen Tools erhalten.")
+            if st.button("Gemerkte Word-PDF entfernen", use_container_width=True):
+                clear_cached_files("pdf_to_word_file")
+                st.rerun()
         errors = validate_pdf_file(pdf_file)
         for error in errors:
             st.error(error)
@@ -978,7 +1032,15 @@ def render_pdf_merge_converter() -> None:
         st.markdown('<div class="wf-card">', unsafe_allow_html=True)
         st.markdown("<h2>PDF Merge</h2>", unsafe_allow_html=True)
         st.markdown('<p class="wf-card-subtitle">Mehrere PDF-Dateien zu einer PDF zusammenführen.</p>', unsafe_allow_html=True)
-        pdf_files = st.file_uploader("PDFs hochladen", type=SUPPORTED_PDF_TYPES, accept_multiple_files=True, help="Lade mindestens zwei PDFs hoch.")
+        uploaded_now = st.file_uploader("PDFs hochladen", type=SUPPORTED_PDF_TYPES, accept_multiple_files=True, help="Lade mindestens zwei PDFs hoch.", key="pdf_merge_upload")
+        if uploaded_now:
+            cache_files("pdf_workspace_files", uploaded_now)
+        pdf_files = get_cached_files("pdf_workspace_files")
+        if pdf_files:
+            st.caption("Dateien bleiben beim Wechsel zwischen PDF Merge und PDF Split erhalten.")
+            if st.button("Gemerkte PDFs entfernen", use_container_width=True):
+                clear_cached_files("pdf_workspace_files")
+                st.rerun()
         errors = validate_pdf_files(pdf_files, min_files=2)
         for error in errors:
             st.error(error)
@@ -1025,7 +1087,16 @@ def render_pdf_split_converter() -> None:
         st.markdown('<div class="wf-card">', unsafe_allow_html=True)
         st.markdown("<h2>PDF Split</h2>", unsafe_allow_html=True)
         st.markdown('<p class="wf-card-subtitle">Bestimmte Seiten aus einer PDF als neue PDF exportieren.</p>', unsafe_allow_html=True)
-        pdf_file = st.file_uploader("PDF hochladen", type=SUPPORTED_PDF_TYPES, accept_multiple_files=False)
+        uploaded_now = st.file_uploader("PDF hochladen", type=SUPPORTED_PDF_TYPES, accept_multiple_files=False, key="pdf_split_upload")
+        if uploaded_now:
+            cache_files("pdf_workspace_files", uploaded_now)
+        cached_pdfs = get_cached_files("pdf_workspace_files")
+        pdf_file = cached_pdfs[0] if cached_pdfs else None
+        if pdf_file:
+            st.caption(f"Aktive PDF: {pdf_file.name}. Dateien bleiben beim Wechsel zwischen PDF Merge und PDF Split erhalten.")
+            if st.button("Gemerkte PDF entfernen", use_container_width=True):
+                clear_cached_files("pdf_workspace_files")
+                st.rerun()
         errors = validate_pdf_file(pdf_file)
         for error in errors:
             st.error(error)
