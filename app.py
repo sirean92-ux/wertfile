@@ -99,8 +99,13 @@ def inject_css() -> None:
         p { line-height: 1.55; }
 
         @keyframes orbFloat {
-            0%, 100% { transform: translateY(0) rotate(0deg) scale(1); }
-            50% { transform: translateY(-7px) rotate(4deg) scale(1.04); }
+            0%, 100% { translate: 0 0; scale: 1; }
+            50% { translate: 0 -9px; scale: 1.04; }
+        }
+
+        @keyframes orbSpin {
+            0% { rotate: 0deg; }
+            100% { rotate: 360deg; }
         }
 
         .wf-topbar {
@@ -222,17 +227,17 @@ def inject_css() -> None:
 
         .wf-workspace-grid {
             display: grid;
-            grid-template-columns: repeat(4, 1fr);
-            gap: 12px;
-            margin-bottom: 16px;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 18px;
+            margin-bottom: 18px;
         }
 
         .wf-workspace-card {
-            min-height: 218px;
+            min-height: 310px;
             background: #FFFFFF;
             border: 1px solid var(--line);
-            border-radius: 24px;
-            padding: 18px;
+            border-radius: 30px;
+            padding: 30px;
             box-shadow: 0 12px 32px rgba(15,23,42,0.05);
             transition: transform .22s ease, box-shadow .22s ease, border-color .22s ease;
         }
@@ -248,8 +253,8 @@ def inject_css() -> None:
         .wf-workspace-card.active-office { background: linear-gradient(145deg, #FFFFFF, var(--purple-soft)); border-color: rgba(124,58,237,0.30); }
 
         .wf-orb {
-            width: 62px;
-            height: 62px;
+            width: 92px;
+            height: 92px;
             border-radius: 999px;
             position: relative;
             overflow: hidden;
@@ -259,7 +264,7 @@ def inject_css() -> None:
                 radial-gradient(circle at 72% 30%, rgba(255,255,255,0.50) 0 7%, transparent 25%),
                 linear-gradient(135deg, #93C5FD 0%, #7C3AED 48%, #22D3EE 100%);
             box-shadow: inset 10px 11px 20px rgba(255,255,255,0.42), inset -14px -16px 24px rgba(30,64,175,0.16), 0 18px 36px rgba(37,99,235,0.18);
-            animation: orbFloat 6s ease-in-out infinite;
+            animation: orbFloat 6s ease-in-out infinite, orbSpin 9s linear infinite;
         }
 
         .wf-orb::after {
@@ -280,15 +285,15 @@ def inject_css() -> None:
         .wf-orb.office { background: radial-gradient(circle at 28% 22%, rgba(255,255,255,0.98) 0 8%, transparent 22%), linear-gradient(135deg, #DDD6FE 0%, #A78BFA 48%, #F472B6 100%); box-shadow: 0 18px 36px rgba(124,58,237,0.18); animation-delay: -3s; }
 
         .wf-workspace-card h3 {
-            margin: 0 0 7px;
-            font-size: 18px;
+            margin: 0 0 9px;
+            font-size: 25px;
             letter-spacing: -0.5px;
             font-weight: 900;
         }
 
         .wf-workspace-card p {
             color: var(--muted) !important;
-            font-size: 13px;
+            font-size: 15px;
             margin: 0 0 12px;
             font-weight: 550;
         }
@@ -297,12 +302,12 @@ def inject_css() -> None:
 
         .wf-tag {
             display: inline-flex;
-            padding: 6px 8px;
+            padding: 8px 11px;
             border-radius: 999px;
             background: rgba(255,255,255,0.72);
             border: 1px solid rgba(226,232,240,0.80);
             color: #475569 !important;
-            font-size: 11px;
+            font-size: 12px;
             font-weight: 800;
         }
 
@@ -393,6 +398,8 @@ def inject_css() -> None:
         @media (max-width: 700px) {
             .wf-topbar, .wf-section-title { align-items: flex-start; flex-direction: column; }
             .wf-workspace-grid, .wf-tool-strip { grid-template-columns: 1fr; }
+            .wf-workspace-card { min-height: 260px; padding: 24px; }
+            .wf-orb { width: 76px; height: 76px; }
             .stRadio div[role="radiogroup"] { grid-template-columns: 1fr !important; }
             .wf-info-grid { grid-template-columns: 1fr; }
         }
