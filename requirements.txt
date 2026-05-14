@@ -1,1 +1,4 @@
-Pillow
+streamlit
+pillow
+pymupdf
+python-docx
