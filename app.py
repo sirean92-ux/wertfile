@@ -135,7 +135,7 @@ def inject_css() -> None:
                 radial-gradient(circle at 28% 22%, rgba(255,255,255,0.98) 0 8%, transparent 22%),
                 linear-gradient(135deg, #93C5FD 0%, #A78BFA 48%, #34D399 100%);
             box-shadow: 0 14px 30px rgba(37,99,235,0.20);
-            animation: orbFloat 5.5s ease-in-out infinite;
+            animation: orbFloat 5.5s ease-in-out infinite, orbSpin 10s linear infinite;
         }
 
         .wf-logo::after {
@@ -382,10 +382,31 @@ def inject_css() -> None:
         .stRadio div[role="radiogroup"] label p { color: #0F172A !important; font-weight: 850 !important; font-size: 13px !important; }
         .stRadio input { accent-color: #2563EB !important; }
 
-        .stButton > button, .stDownloadButton > button {
-            border-radius: 14px !important; min-height: 50px !important; border: 1px solid rgba(37,99,235,0.22) !important; background: linear-gradient(135deg, #EFF6FF 0%, #F5F3FF 100%) !important; color: #1D4ED8 !important; font-weight: 850 !important; box-shadow: 0 10px 24px rgba(37,99,235,0.10) !important; transition: transform .2s ease, box-shadow .2s ease, border-color .2s ease !important;
+        .wf-launch-title {
+            margin: 4px 0 10px;
+            color: #475569 !important;
+            font-size: 13px;
+            font-weight: 900;
+            letter-spacing: .2px;
+            text-transform: uppercase;
         }
-        .stButton > button:hover, .stDownloadButton > button:hover { transform: translateY(-1px); border-color: rgba(37,99,235,0.38) !important; box-shadow: 0 14px 34px rgba(37,99,235,0.16) !important; }
+
+        .stButton > button, .stDownloadButton > button {
+            border-radius: 18px !important;
+            min-height: 58px !important;
+            border: 1px solid rgba(37,99,235,0.24) !important;
+            background: linear-gradient(135deg, #FFFFFF 0%, #EFF6FF 45%, #F5F3FF 100%) !important;
+            color: #1D4ED8 !important;
+            font-weight: 900 !important;
+            box-shadow: 0 12px 28px rgba(37,99,235,0.10) !important;
+            transition: transform .2s ease, box-shadow .2s ease, border-color .2s ease, background .2s ease !important;
+        }
+        .stButton > button:hover, .stDownloadButton > button:hover {
+            transform: translateY(-2px);
+            border-color: rgba(124,58,237,0.42) !important;
+            background: linear-gradient(135deg, #EFF6FF 0%, #EDE9FE 55%, #ECFDF5 100%) !important;
+            box-shadow: 0 16px 42px rgba(37,99,235,0.16) !important;
+        }
         .stButton > button:disabled { background: #F1F5F9 !important; color: #94A3B8 !important; box-shadow: none !important; border-color: #E2E8F0 !important; }
 
         .stAlert { border-radius: 16px !important; }
@@ -773,21 +794,24 @@ def render_workspace_selector() -> None:
         unsafe_allow_html=True,
     )
 
-    c1, c2, c3, c4 = st.columns(4)
-    with c1:
-        if st.button("PDF öffnen", use_container_width=True):
+    st.markdown('<div class="wf-launch-title">Workspace starten</div>', unsafe_allow_html=True)
+    row1_col1, row1_col2 = st.columns(2, gap="medium")
+    with row1_col1:
+        if st.button("PDF Workspace öffnen →", use_container_width=True):
             st.session_state.active_workspace = "pdf"
             st.rerun()
-    with c2:
-        if st.button("Video öffnen", use_container_width=True):
+    with row1_col2:
+        if st.button("Video & Audio öffnen →", use_container_width=True):
             st.session_state.active_workspace = "video"
             st.rerun()
-    with c3:
-        if st.button("Image öffnen", use_container_width=True):
+
+    row2_col1, row2_col2 = st.columns(2, gap="medium")
+    with row2_col1:
+        if st.button("Image Tools öffnen →", use_container_width=True):
             st.session_state.active_workspace = "image"
             st.rerun()
-    with c4:
-        if st.button("Office öffnen", use_container_width=True):
+    with row2_col2:
+        if st.button("Office Convert öffnen →", use_container_width=True):
             st.session_state.active_workspace = "office"
             st.rerun()
 
