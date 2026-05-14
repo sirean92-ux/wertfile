@@ -2,6 +2,8 @@ import streamlit as st
 from PIL import Image, ImageOps, UnidentifiedImageError
 import io
 import zipfile
+import sys
+import subprocess
 from datetime import datetime
 from typing import List, Tuple
 
@@ -466,6 +468,35 @@ def inject_css() -> None:
     )
 
 
+# ---------- Auto Installer ----------
+def install_missing_packages(packages: List[str]) -> Tuple[bool, str]:
+    try:
+        command = [sys.executable, "-m", "pip", "install", *packages]
+        result = subprocess.run(command, capture_output=True, text=True, timeout=180)
+        output = (result.stdout or "") + "
+" + (result.stderr or "")
+        return result.returncode == 0, output
+    except Exception as exc:
+        return False, str(exc)
+
+
+def render_missing_package_box(title: str, packages: List[str]) -> None:
+    st.markdown('<div class="wf-card">', unsafe_allow_html=True)
+    st.markdown(f"<h2>{title}</h2>", unsafe_allow_html=True)
+    st.warning("Für dieses Tool fehlen noch Python-Pakete. Du musst dafür nicht ins Terminal — Wertfile kann versuchen, sie automatisch in derselben Umgebung zu installieren.")
+    st.code(f"Installiert wird: {' '.join(packages)}")
+    if st.button("Fehlende Pakete automatisch installieren", use_container_width=True):
+        with st.spinner("Pakete werden installiert. Das kann kurz dauern..."):
+            success, output = install_missing_packages(packages)
+            if success:
+                st.success("Installation abgeschlossen. Bitte die App einmal stoppen und neu starten.")
+                st.code("streamlit run app.py")
+            else:
+                st.error("Automatische Installation hat nicht geklappt. Hier ist die Fehlermeldung:")
+                st.text_area("Fehlerdetails", output, height=220)
+    st.markdown('</div>', unsafe_allow_html=True)
+
+
 # ---------- Helpers ----------
 def mb(size_bytes: int) -> float:
     return size_bytes / (1024 * 1024)
@@ -877,7 +908,13 @@ def render_image_to_pdf_converter() -> None:
 
 def render_pdf_to_word_converter() -> None:
     if fitz is None or Document is None:
-        st.error("Für PDF → Word fehlen Pakete. Bitte ausführen: pip install pymupdf python-docx")
+        missing = []
+        if fitz is None:
+            missing.append("pymupdf")
+        if Document is None:
+            missing.append("python-docx")
+        render_missing_package_box("PDF → Word vorbereiten", missing)
+        return
     left, right = st.columns([1.05, 0.95], gap="large")
     with left:
         st.markdown('<div class="wf-card">', unsafe_allow_html=True)
@@ -933,7 +970,8 @@ def render_pdf_to_word_converter() -> None:
 
 def render_pdf_merge_converter() -> None:
     if fitz is None:
-        st.error("Für PDF Merge fehlt PyMuPDF. Bitte ausführen: pip install pymupdf")
+        render_missing_package_box("PDF Merge vorbereiten", ["pymupdf"])
+        return
     left, right = st.columns([1.05, 0.95], gap="large")
     with left:
         st.markdown('<div class="wf-card">', unsafe_allow_html=True)
@@ -979,7 +1017,8 @@ def render_pdf_merge_converter() -> None:
 
 def render_pdf_split_converter() -> None:
     if fitz is None:
-        st.error("Für PDF Split fehlt PyMuPDF. Bitte ausführen: pip install pymupdf")
+        render_missing_package_box("PDF Split vorbereiten", ["pymupdf"])
+        return
     left, right = st.columns([1.05, 0.95], gap="large")
     with left:
         st.markdown('<div class="wf-card">', unsafe_allow_html=True)
