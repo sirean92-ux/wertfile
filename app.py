@@ -18,12 +18,6 @@ except ImportError:
     Document = None
     Pt = None
 
-try:
-    from pypdf import PdfReader, PdfWriter
-except ImportError:
-    PdfReader = None
-    PdfWriter = None
-
 # =========================================================
 # WERTFILE 1.2 CLEAN
 # Fokus: stabil, clean, keine unnötigen Elemente
@@ -657,38 +651,48 @@ def create_word_from_pdf_text(pdf_file, output_style: str, include_page_numbers:
 
 
 def get_pdf_page_count(pdf_file) -> int:
-    if PdfReader is None:
-        raise ImportError("pypdf fehlt. Bitte installiere es mit: pip install pypdf")
+    if fitz is None:
+        raise ImportError("PyMuPDF fehlt. Bitte installiere es mit: pip install pymupdf")
     pdf_file.seek(0)
-    reader = PdfReader(pdf_file)
-    return len(reader.pages)
+    pdf_bytes = pdf_file.read()
+    with fitz.open(stream=pdf_bytes, filetype="pdf") as doc:
+        return doc.page_count
 
 
 def merge_pdfs(uploaded_files, sort_mode: str) -> Tuple[bytes, int]:
-    if PdfReader is None or PdfWriter is None:
-        raise ImportError("pypdf fehlt. Bitte installiere es mit: pip install pypdf")
+    if fitz is None:
+        raise ImportError("PyMuPDF fehlt. Bitte installiere es mit: pip install pymupdf")
+
     files = list(uploaded_files)
     if sort_mode == "Dateiname A–Z":
         files = sorted(files, key=lambda f: f.name.lower())
     elif sort_mode == "Dateiname Z–A":
         files = sorted(files, key=lambda f: f.name.lower(), reverse=True)
-    writer = PdfWriter()
+
+    output_doc = fitz.open()
     total_pages = 0
+
     for file in files:
         file.seek(0)
-        reader = PdfReader(file)
-        if reader.is_encrypted:
-            try:
-                reader.decrypt("")
-            except Exception:
-                raise ValueError(f"{file.name} ist verschlüsselt und kann nicht verarbeitet werden.")
-        for page in reader.pages:
-            writer.add_page(page)
-            total_pages += 1
-    buffer = io.BytesIO()
-    writer.write(buffer)
-    buffer.seek(0)
-    return buffer.getvalue(), total_pages
+        pdf_bytes = file.read()
+        try:
+            with fitz.open(stream=pdf_bytes, filetype="pdf") as input_doc:
+                if input_doc.needs_pass:
+                    raise ValueError(f"{file.name} ist verschlüsselt und kann nicht verarbeitet werden.")
+                output_doc.insert_pdf(input_doc)
+                total_pages += input_doc.page_count
+        except ValueError:
+            raise
+        except Exception as exc:
+            raise ValueError(f"{file.name} konnte nicht verarbeitet werden: {exc}")
+
+    if total_pages == 0:
+        output_doc.close()
+        raise ValueError("Es wurden keine PDF-Seiten gefunden.")
+
+    merged_bytes = output_doc.tobytes(garbage=4, deflate=True)
+    output_doc.close()
+    return merged_bytes, total_pages
 
 
 def parse_page_ranges(range_text: str, max_pages: int) -> List[int]:
@@ -717,24 +721,32 @@ def parse_page_ranges(range_text: str, max_pages: int) -> List[int]:
 
 
 def split_pdf(pdf_file, range_text: str) -> Tuple[bytes, int, int]:
-    if PdfReader is None or PdfWriter is None:
-        raise ImportError("pypdf fehlt. Bitte installiere es mit: pip install pypdf")
+    if fitz is None:
+        raise ImportError("PyMuPDF fehlt. Bitte installiere es mit: pip install pymupdf")
+
     pdf_file.seek(0)
-    reader = PdfReader(pdf_file)
-    if reader.is_encrypted:
-        try:
-            reader.decrypt("")
-        except Exception:
-            raise ValueError("Diese PDF ist verschlüsselt und kann nicht verarbeitet werden.")
-    max_pages = len(reader.pages)
+    pdf_bytes = pdf_file.read()
+
+    try:
+        input_doc = fitz.open(stream=pdf_bytes, filetype="pdf")
+    except Exception as exc:
+        raise ValueError(f"PDF konnte nicht geöffnet werden: {exc}")
+
+    if input_doc.needs_pass:
+        input_doc.close()
+        raise ValueError("Diese PDF ist verschlüsselt und kann nicht verarbeitet werden.")
+
+    max_pages = input_doc.page_count
     pages = parse_page_ranges(range_text, max_pages)
-    writer = PdfWriter()
+
+    output_doc = fitz.open()
     for page_number in pages:
-        writer.add_page(reader.pages[page_number - 1])
-    buffer = io.BytesIO()
-    writer.write(buffer)
-    buffer.seek(0)
-    return buffer.getvalue(), len(pages), max_pages
+        output_doc.insert_pdf(input_doc, from_page=page_number - 1, to_page=page_number - 1)
+
+    split_bytes = output_doc.tobytes(garbage=4, deflate=True)
+    output_doc.close()
+    input_doc.close()
+    return split_bytes, len(pages), max_pages
 
 
 # ---------- UI ----------
@@ -920,8 +932,8 @@ def render_pdf_to_word_converter() -> None:
 
 
 def render_pdf_merge_converter() -> None:
-    if PdfReader is None or PdfWriter is None:
-        st.error("Für PDF Merge fehlt pypdf. Bitte ausführen: pip install pypdf")
+    if fitz is None:
+        st.error("Für PDF Merge fehlt PyMuPDF. Bitte ausführen: pip install pymupdf")
     left, right = st.columns([1.05, 0.95], gap="large")
     with left:
         st.markdown('<div class="wf-card">', unsafe_allow_html=True)
@@ -944,7 +956,7 @@ def render_pdf_merge_converter() -> None:
             for idx, file in enumerate(display_files, start=1):
                 st.markdown(f'<div class="wf-file-row"><span>{idx}. {file.name}</span><small>{mb(file.size):.2f} MB</small></div>', unsafe_allow_html=True)
             st.markdown('</div>', unsafe_allow_html=True)
-        disabled = not pdf_files or bool(errors) or PdfReader is None or PdfWriter is None
+        disabled = not pdf_files or bool(errors) or fitz is None
         if disabled:
             st.button("PDFs zusammenführen", use_container_width=True, disabled=True)
         else:
@@ -966,8 +978,8 @@ def render_pdf_merge_converter() -> None:
 
 
 def render_pdf_split_converter() -> None:
-    if PdfReader is None or PdfWriter is None:
-        st.error("Für PDF Split fehlt pypdf. Bitte ausführen: pip install pypdf")
+    if fitz is None:
+        st.error("Für PDF Split fehlt PyMuPDF. Bitte ausführen: pip install pymupdf")
     left, right = st.columns([1.05, 0.95], gap="large")
     with left:
         st.markdown('<div class="wf-card">', unsafe_allow_html=True)
@@ -978,14 +990,14 @@ def render_pdf_split_converter() -> None:
         for error in errors:
             st.error(error)
         page_count = None
-        if pdf_file and not errors and PdfReader is not None:
+        if pdf_file and not errors and fitz is not None:
             try:
                 page_count = get_pdf_page_count(pdf_file)
                 st.markdown(f"""<div class="wf-info-grid"><div class="wf-info-box"><b>{page_count}</b><span>Seiten</span></div><div class="wf-info-box"><b>{mb(pdf_file.size):.1f} MB</b><span>Dateigröße</span></div><div class="wf-info-box"><b>PDF</b><span>Export</span></div></div>""", unsafe_allow_html=True)
             except Exception as exc:
                 st.error(str(exc))
         range_text = st.text_input("Seitenbereich", placeholder="z. B. 1-3 oder 1,3,5")
-        disabled = not pdf_file or bool(errors) or not range_text or PdfReader is None or PdfWriter is None
+        disabled = not pdf_file or bool(errors) or not range_text or fitz is None
         if disabled:
             st.button("Seiten exportieren", use_container_width=True, disabled=True)
         else:
