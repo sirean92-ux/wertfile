@@ -709,4 +709,13 @@ def render_test_plan() -> None:
 def render_footer() -> None:
     st.markdown(
         f'<div class="wf-footer">{APP_NAME}. Technology Germany · Dateien werden in dieser Session verarbeitet und nicht bewusst dauerhaft gespeichert.</div>',
-        unsafe_allow_html=T
+        unsafe_allow_html=True,
+    )
+
+
+# ---------- Render ----------
+inject_css()
+render_header()
+render_converter()
+render_test_plan()
+render_footer()
