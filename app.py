@@ -5,12 +5,13 @@ import io
 # 1. Grundkonfiguration
 st.set_page_config(page_title="Wertfile | Business Dashboard", page_icon="🛡️", layout="wide")
 
-# 2. Finom Premium UX CSS
+# 2. Finom Premium UX CSS (Farben fixiert)
 st.markdown("""
     <style>
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
     
-    .stApp { background-color: #F8FAFC; font-family: 'Inter', sans-serif; }
+    /* Hintergrund & Font */
+    .stApp { background-color: #F8FAFC !important; font-family: 'Inter', sans-serif; }
     header, footer, .stDeployButton {display:none !important;}
 
     /* Navigation Bar */
@@ -49,39 +50,44 @@ st.markdown("""
         margin-bottom: 30px;
     }
 
+    /* TEXTFARBEN FIXIEREN */
+    .hero-card h1 { color: #1E293B !important; font-size: 48px !important; font-weight: 800 !important; letter-spacing: -1.5px !important; margin-bottom: 15px; }
+    .hero-card p { color: #64748B !important; font-size: 20px !important; }
+    
     .step-box {
         background: #F1F5F9;
         border-radius: 16px;
         padding: 20px;
         text-align: center;
         margin-bottom: 10px;
+        color: #1E293B !important; /* Fix für die Zahl/Text in der Box */
     }
+    .step-box b { color: #1E293B !important; }
 
-    /* Uploader Styling - High Visibility */
+    /* Uploader Text Fix */
+    .stFileUploader label { color: #1E293B !important; font-weight: 600 !important; }
     .stFileUploader section {
         border-radius: 24px !important;
         border: 2px dashed #3B82F6 !important;
         background-color: #F0F7FF !important;
         padding: 40px !important;
-        transition: 0.3s;
     }
-    .stFileUploader section:hover { border-color: #1E293B !important; background-color: #E0EFFF !important; }
 
     /* Action Button */
     .stButton>button {
         width: 100%;
         border-radius: 16px;
-        background-color: #1E293B;
-        color: white;
+        background-color: #1E293B !important;
+        color: white !important;
         height: 64px;
         font-weight: 700;
         font-size: 18px;
         border: none;
-        box-shadow: 0 10px 20px rgba(30, 41, 59, 0.2);
     }
-    .stButton>button:hover { background-color: #000000; transform: translateY(-2px); }
+    .stButton>button:hover { background-color: #000000 !important; color: white !important; }
     
-    h1 { font-size: 48px !important; font-weight: 800 !important; letter-spacing: -1.5px !important; color: #1E293B; }
+    /* Allgemeine Text-Farben für Streamlit-Elemente erzwingen */
+    p, span, label, div { color: #1E293B; }
     </style>
     """, unsafe_allow_html=True)
 
@@ -91,7 +97,7 @@ st.markdown("""
 st.markdown("""
     <div class="nav-bar">
         <div><span style="font-weight:800; font-size:22px; color:#1E293B;">Wertfile.</span></div>
-        <div style="color:#64748B; font-size:14px;">Status: <b>Bereit</b> <span style="color:#10B981;">●</span></div>
+        <div style="color:#64748B; font-size:14px;">Status: <b style="color:#1E293B;">Bereit</b> <span style="color:#10B981;">●</span></div>
     </div>
     """, unsafe_allow_html=True)
 
@@ -103,7 +109,7 @@ st.markdown("""
     <div class="hero-card">
         <div class="sphere"></div>
         <h1>Bilder in PDF umwandeln.</h1>
-        <p style="color:#64748B; font-size:20px; max-width:600px; margin: 0 auto 40px;">
+        <p>
             Sicher, schnell und ohne Speicherung auf Servern. <br>Einfach Bilder hochladen und Dokument generieren.
         </p>
     </div>
@@ -122,10 +128,10 @@ with col2:
     st.write("<br>", unsafe_allow_html=True)
 
     # Das eigentliche Tool
-    uploaded_files = st.file_uploader("Zieh deine JPG oder PNG Dateien hier rein", type=['jpg', 'jpeg', 'png'], accept_multiple_files=True)
+    uploaded_files = st.file_uploader("Wähle JPG oder PNG Dateien aus", type=['jpg', 'jpeg', 'png'], accept_multiple_files=True)
     
     if uploaded_files:
-        st.markdown(f"<p style='text-align:center; font-weight:600;'>{len(uploaded_files)} Datei(en) ausgewählt</p>", unsafe_allow_html=True)
+        st.markdown(f"<p style='text-align:center; font-weight:700; color:#1E293B;'>{len(uploaded_files)} Datei(en) ausgewählt</p>", unsafe_allow_html=True)
         if st.button("🚀 Jetzt PDF Dokument erstellen"):
             with st.spinner("Erstelle Dokument..."):
                 images = [Image.open(f).convert('RGB') for f in uploaded_files]
@@ -141,7 +147,7 @@ with col2:
                     mime="application/pdf"
                 )
 
-st.markdown('</div>', unsafe_allow_html=True) # close main-content
+st.markdown('</div>', unsafe_allow_html=True) 
 
 # Footer
-st.markdown("<p style='text-align: center; color: #9CA3AF; font-size: 13px; margin-top: 100px; padding-bottom: 50px;'>Wertfile. – 100% Privacy-Focused File Processing.</p>", unsafe_allow_html=True)
+st.markdown("<p style='text-align: center; color: #9CA3AF; font-size: 13px; margin-top: 10
