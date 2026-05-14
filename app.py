@@ -5,8 +5,7 @@ from datetime import datetime
 
 # =========================================================
 # WERTFILE — Premium Streamlit Web App
-# Ziel: Moderne SaaS-/Fintech-Optik ähnlich Finom, Qonto, Linear
-# Module placeholders, Security Layer
+# Clean SaaS/Product-App Layout mit beweglichen 3D-Orbs
 # =========================================================
 
 st.set_page_config(
@@ -16,7 +15,16 @@ st.set_page_config(
     initial_sidebar_state="collapsed",
 )
 
-# ---------- Helper ----------
+# ---------- State ----------
+if "active_tool" not in st.session_state:
+    st.session_state.active_tool = "pdf"
+
+
+def set_tool(tool_name: str):
+    st.session_state.active_tool = tool_name
+
+
+# ---------- CSS ----------
 def inject_css():
     st.markdown(
         """
@@ -24,23 +32,21 @@ def inject_css():
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
 
         :root {
-            --bg: #F5F7FB;
-            --surface: #FFFFFF;
-            --surface-soft: #F8FAFC;
-            --ink: #0B1020;
+            --bg: #F6F8FC;
+            --ink: #08111F;
             --muted: #64748B;
-            --line: #E2E8F0;
+            --line: rgba(148, 163, 184, 0.24);
+            --white-glass: rgba(255, 255, 255, 0.72);
+            --white-strong: rgba(255, 255, 255, 0.92);
             --primary: #101828;
-            --primary-2: #1D4ED8;
+            --purple: #7C3AED;
+            --pink: #DB2777;
+            --blue: #2563EB;
             --green: #10B981;
-            --green-soft: #D1FAE5;
-            --blue-soft: #DBEAFE;
-            --violet-soft: #EDE9FE;
-            --orange-soft: #FFEDD5;
-            --shadow-sm: 0 8px 24px rgba(15, 23, 42, 0.06);
-            --shadow-md: 0 18px 60px rgba(15, 23, 42, 0.10);
-            --radius-xl: 28px;
-            --radius-lg: 22px;
+            --shadow-soft: 0 22px 70px rgba(15, 23, 42, 0.10);
+            --shadow-hover: 0 34px 100px rgba(15, 23, 42, 0.16);
+            --radius-xl: 34px;
+            --radius-lg: 24px;
         }
 
         html, body, [class*="css"] {
@@ -49,9 +55,10 @@ def inject_css():
 
         .stApp {
             background:
-                radial-gradient(circle at top left, rgba(59, 130, 246, 0.16), transparent 35%),
-                radial-gradient(circle at 85% 8%, rgba(16, 185, 129, 0.15), transparent 28%),
-                linear-gradient(180deg, #F8FAFC 0%, #EEF2F7 100%) !important;
+                radial-gradient(circle at 8% 18%, rgba(124,58,237,0.13), transparent 28%),
+                radial-gradient(circle at 88% 16%, rgba(34,211,238,0.14), transparent 30%),
+                radial-gradient(circle at 50% 100%, rgba(219,39,119,0.10), transparent 34%),
+                linear-gradient(180deg, #F8FAFC 0%, #EEF3F9 100%) !important;
             color: var(--ink);
         }
 
@@ -60,690 +67,561 @@ def inject_css():
         }
 
         .block-container {
-            max-width: 1240px;
-            padding-top: 108px !important;
-            padding-bottom: 64px !important;
+            max-width: 1320px;
+            padding-top: 98px !important;
+            padding-bottom: 54px !important;
         }
 
         h1, h2, h3, h4, p, span, label, div {
             color: var(--ink);
         }
 
-        p {
-            line-height: 1.65;
+        p { line-height: 1.62; }
+
+        /* ---------- Motion ---------- */
+        @keyframes orb-dance {
+            0%, 100% { transform: translate3d(0, 0, 0) rotate(0deg) scale(1); }
+            20% { transform: translate3d(4px, -9px, 0) rotate(8deg) scale(1.045); }
+            45% { transform: translate3d(-3px, -3px, 0) rotate(-5deg) scale(0.99); }
+            70% { transform: translate3d(5px, 6px, 0) rotate(6deg) scale(1.03); }
         }
 
-        /* Top Navigation */
+        @keyframes orb-glow {
+            0%, 100% { filter: saturate(1.02) brightness(1); }
+            50% { filter: saturate(1.25) brightness(1.08); }
+        }
+
+        @keyframes soft-float {
+            0%, 100% { transform: translateY(0) scale(1); }
+            50% { transform: translateY(-7px) scale(1.006); }
+        }
+
+        @keyframes shine-sweep {
+            0% { transform: translateX(-140%) rotate(18deg); opacity: 0; }
+            35% { opacity: .55; }
+            100% { transform: translateX(160%) rotate(18deg); opacity: 0; }
+        }
+
+        @keyframes background-orb-1 {
+            0%, 100% { transform: translate(0, 0) scale(1); }
+            50% { transform: translate(18px, -16px) scale(1.08); }
+        }
+
+        @keyframes background-orb-2 {
+            0%, 100% { transform: translate(0, 0) scale(1); }
+            50% { transform: translate(-14px, 12px) scale(0.96); }
+        }
+
+        /* ---------- Nav ---------- */
         .wf-nav {
             position: fixed;
             top: 18px;
             left: 50%;
             transform: translateX(-50%);
-            width: min(1180px, calc(100% - 32px));
+            width: min(1260px, calc(100% - 32px));
             z-index: 9999;
             display: flex;
             align-items: center;
             justify-content: space-between;
-            padding: 12px 14px 12px 18px;
-            border: 1px solid rgba(226, 232, 240, 0.9);
+            padding: 13px 16px;
             border-radius: 999px;
-            background: rgba(255, 255, 255, 0.78);
-            backdrop-filter: blur(18px);
-            -webkit-backdrop-filter: blur(18px);
-            box-shadow: 0 20px 80px rgba(15, 23, 42, 0.08);
+            border: 1px solid rgba(255,255,255,0.75);
+            background: rgba(255,255,255,0.72);
+            backdrop-filter: blur(24px) saturate(1.35);
+            -webkit-backdrop-filter: blur(24px) saturate(1.35);
+            box-shadow: 0 20px 70px rgba(15,23,42,0.08);
         }
 
         .wf-brand {
             display: flex;
             align-items: center;
-            gap: 10px;
+            gap: 11px;
             font-weight: 900;
-            letter-spacing: -0.6px;
-            font-size: 21px;
-        }
-
-        .wf-logo {
-            width: 36px;
-            height: 36px;
-            border-radius: 13px;
-            display: grid;
-            place-items: center;
-            color: white;
-            background: linear-gradient(135deg, #101828 0%, #1D4ED8 65%, #10B981 100%);
-            box-shadow: 0 10px 28px rgba(29, 78, 216, 0.28);
+            letter-spacing: -0.7px;
+            font-size: 23px;
         }
 
         .wf-nav-links {
             display: flex;
             align-items: center;
-            gap: 22px;
-            font-size: 14px;
-            font-weight: 700;
-            color: #334155;
-        }
-
-        .wf-pill {
-            display: inline-flex;
-            align-items: center;
-            gap: 8px;
-            padding: 10px 14px;
-            border-radius: 999px;
-            background: #0B1020;
-            color: #FFFFFF !important;
-            font-size: 13px;
-            font-weight: 800;
-        }
-
-        .wf-dot {
-            width: 8px;
-            height: 8px;
-            border-radius: 999px;
-            background: #10B981;
-            display: inline-block;
-            box-shadow: 0 0 0 6px rgba(16, 185, 129, 0.12);
-        }
-
-        /* Hero */
-        .wf-hero {
-            display: grid;
-            grid-template-columns: 1.06fr 0.94fr;
-            gap: 26px;
-            align-items: stretch;
-            margin-bottom: 26px;
-        }
-
-        .wf-hero-left {
-            background: rgba(255, 255, 255, 0.82);
-            border: 1px solid rgba(226, 232, 240, 0.95);
-            border-radius: 36px;
-            padding: 54px;
-            box-shadow: var(--shadow-md);
-            position: relative;
-            overflow: hidden;
-        }
-
-        .wf-hero-left::after {
-            content: '';
-            position: absolute;
-            right: -120px;
-            bottom: -130px;
-            width: 320px;
-            height: 320px;
-            border-radius: 999px;
-            background: radial-gradient(circle, rgba(29, 78, 216, 0.17), transparent 70%);
-        }
-
-        .wf-kicker {
-            width: fit-content;
-            display: inline-flex;
-            align-items: center;
-            gap: 8px;
-            padding: 8px 12px;
-            border-radius: 999px;
-            background: #EEF2FF;
-            color: #3730A3 !important;
-            font-size: 13px;
-            font-weight: 800;
-            margin-bottom: 22px;
-        }
-
-        .wf-hero-title {
-            font-size: clamp(44px, 5vw, 76px);
-            line-height: 0.95;
-            letter-spacing: -4px;
-            font-weight: 900;
-            margin: 0 0 22px 0;
-        }
-
-        .wf-gradient-text {
-            background: linear-gradient(90deg, #101828 0%, #1D4ED8 50%, #10B981 100%);
-            -webkit-background-clip: text;
-            background-clip: text;
-            color: transparent !important;
-        }
-
-        .wf-hero-copy {
-            font-size: 18px;
-            color: #475569 !important;
-            max-width: 660px;
-            margin-bottom: 28px;
-        }
-
-        .wf-hero-actions {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 12px;
-            align-items: center;
-        }
-
-        .wf-btn-main, .wf-btn-secondary {
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            min-height: 48px;
-            padding: 0 18px;
-            border-radius: 16px;
-            font-weight: 850;
-            font-size: 14px;
-        }
-
-        .wf-btn-main {
-            color: white !important;
-            background: #101828;
-            box-shadow: 0 14px 32px rgba(16, 24, 40, 0.22);
-        }
-
-        .wf-btn-secondary {
-            color: #101828 !important;
-            background: #FFFFFF;
-            border: 1px solid #E2E8F0;
-        }
-
-        .wf-hero-right {
-            display: grid;
-            gap: 16px;
-        }
-
-        .wf-app-card {
-            border-radius: 34px;
-            padding: 24px;
-            background: #101828;
-            box-shadow: var(--shadow-md);
-            border: 1px solid rgba(255, 255, 255, 0.08);
-            overflow: hidden;
-            position: relative;
-        }
-
-        .wf-app-card::before {
-            content: '';
-            position: absolute;
-            top: -100px;
-            right: -70px;
-            width: 240px;
-            height: 240px;
-            border-radius: 999px;
-            background: rgba(16, 185, 129, 0.24);
-            filter: blur(3px);
-        }
-
-        .wf-app-top {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            position: relative;
-        }
-
-        .wf-app-title {
-            color: white !important;
-            font-size: 17px;
-            font-weight: 850;
-        }
-
-        .wf-app-badge {
-            color: #A7F3D0 !important;
-            background: rgba(16, 185, 129, 0.14);
-            border: 1px solid rgba(16, 185, 129, 0.25);
-            border-radius: 999px;
-            padding: 7px 10px;
-            font-size: 12px;
-            font-weight: 800;
-        }
-
-        .wf-phone {
-            margin-top: 26px;
-            border-radius: 30px;
-            padding: 18px;
-            background: rgba(255, 255, 255, 0.08);
-            border: 1px solid rgba(255, 255, 255, 0.10);
-            position: relative;
-        }
-
-        .wf-mini-row {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            gap: 12px;
-            background: rgba(255, 255, 255, 0.10);
-            border: 1px solid rgba(255, 255, 255, 0.09);
-            border-radius: 18px;
-            padding: 13px 14px;
-            margin-bottom: 10px;
-        }
-
-        .wf-mini-row span, .wf-mini-row strong {
-            color: white !important;
-        }
-
-        .wf-mini-row span {
-            color: #CBD5E1 !important;
-            font-size: 13px;
-        }
-
-        .wf-status-grid {
-            display: grid;
-            grid-template-columns: repeat(3, 1fr);
             gap: 10px;
-            margin-top: 14px;
+            padding: 4px;
+            border-radius: 999px;
+            background: rgba(248,250,252,0.75);
+            border: 1px solid rgba(226,232,240,0.78);
         }
 
-        .wf-status-item {
-            padding: 14px;
-            border-radius: 18px;
-            background: rgba(255, 255, 255, 0.08);
-            border: 1px solid rgba(255, 255, 255, 0.08);
+        .wf-nav-links span {
+            padding: 10px 16px;
+            border-radius: 999px;
+            font-size: 13px;
+            font-weight: 800;
+            color: #475569 !important;
         }
 
-        .wf-status-item b {
-            color: white !important;
-            font-size: 18px;
+        .wf-nav-links span:first-child {
+            background: white;
+            color: #101828 !important;
+            box-shadow: 0 10px 24px rgba(15,23,42,0.06);
         }
 
-        .wf-status-item small {
-            color: #CBD5E1 !important;
-            display: block;
-            margin-top: 3px;
-        }
-
-        .wf-trust-card {
-            border-radius: 30px;
-            padding: 24px;
-            background: rgba(255,255,255,0.82);
-            border: 1px solid #E2E8F0;
-            box-shadow: var(--shadow-sm);
-        }
-
-        .wf-trust-grid {
-            display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            gap: 12px;
-        }
-
-        .wf-trust-item {
-            border-radius: 20px;
-            padding: 16px;
-            background: #F8FAFC;
-            border: 1px solid #E2E8F0;
-            text-align: center;
-        }
-
-        .wf-trust-item b {
-            display: block;
-            font-size: 18px;
-            margin-bottom: 2px;
-        }
-
-        .wf-trust-item small {
-            color: #64748B !important;
-            font-weight: 700;
-        }
-
-        /* Sections */
-        .wf-section-title {
-            margin: 46px 0 18px 0;
+        .wf-nav-cta {
             display: flex;
-            justify-content: space-between;
-            align-items: flex-end;
-            gap: 16px;
+            align-items: center;
+            gap: 10px;
         }
 
-        .wf-section-title h2 {
-            font-size: clamp(28px, 3vw, 42px);
-            letter-spacing: -1.8px;
-            margin: 0;
-            font-weight: 900;
+        .wf-nav-pill {
+            border-radius: 999px;
+            padding: 10px 14px;
+            background: #101828;
+            color: white !important;
+            font-weight: 850;
+            font-size: 13px;
+            box-shadow: 0 14px 30px rgba(16,24,40,0.18);
         }
 
-        .wf-section-title p {
-            color: #64748B !important;
-            margin: 8px 0 0 0;
-            max-width: 560px;
-        }
-
-        .wf-module-grid {
-            display: grid;
-            grid-template-columns: repeat(3, minmax(0, 1fr));
-            gap: 16px;
-            margin-bottom: 26px;
-        }
-
-        .wf-module-card {
-            background: rgba(255,255,255,0.86);
-            border: 1px solid #E2E8F0;
-            border-radius: var(--radius-xl);
-            padding: 24px;
-            box-shadow: var(--shadow-sm);
-            min-height: 210px;
-            transition: transform .25s ease, box-shadow .25s ease, border-color .25s ease;
-        }
-
-        .wf-module-card:hover {
-            transform: translateY(-4px);
-            border-color: #CBD5E1;
-            box-shadow: var(--shadow-md);
-        }
-
-        .wf-icon {
-            width: 54px;
-            height: 54px;
-            border-radius: 18px;
-            display: grid;
-            place-items: center;
-            font-size: 27px;
-            margin-bottom: 18px;
-            box-shadow: inset 0 -12px 24px rgba(15, 23, 42, 0.05);
-        }
-
-        .blue { background: var(--blue-soft); }
-        .green { background: var(--green-soft); }
-        .violet { background: var(--violet-soft); }
-        .orange { background: var(--orange-soft); }
-
-        /* Finom-inspired 3D Orb */
+        /* ---------- Orbs ---------- */
         .wf-orb {
-            width: 74px;
-            height: 74px;
+            width: 72px;
+            height: 72px;
             border-radius: 999px;
             position: relative;
-            isolation: isolate;
-            margin-bottom: 18px;
-            background:
-                radial-gradient(circle at 28% 24%, rgba(255,255,255,0.95) 0 8%, transparent 20%),
-                radial-gradient(circle at 72% 28%, rgba(255,255,255,0.55) 0 7%, transparent 24%),
-                radial-gradient(circle at 66% 76%, rgba(255,255,255,0.38) 0 9%, transparent 28%),
-                linear-gradient(135deg, rgba(255, 130, 210, 0.98) 0%, rgba(169, 110, 255, 0.94) 42%, rgba(76, 201, 240, 0.86) 100%);
-            box-shadow:
-                inset 12px 12px 22px rgba(255,255,255,0.36),
-                inset -16px -18px 28px rgba(88, 28, 135, 0.20),
-                0 18px 36px rgba(168, 85, 247, 0.24),
-                0 7px 16px rgba(15, 23, 42, 0.08);
             overflow: hidden;
-            transform: translateZ(0);
+            isolation: isolate;
+            flex: 0 0 auto;
+            background:
+                radial-gradient(circle at 28% 22%, rgba(255,255,255,0.98) 0 7%, transparent 20%),
+                radial-gradient(circle at 72% 28%, rgba(255,255,255,0.52) 0 8%, transparent 25%),
+                radial-gradient(circle at 64% 78%, rgba(255,255,255,0.34) 0 9%, transparent 30%),
+                linear-gradient(135deg, rgba(255,130,210,0.98), rgba(139,92,246,0.92), rgba(34,211,238,0.86));
+            box-shadow:
+                inset 13px 14px 24px rgba(255,255,255,0.42),
+                inset -18px -20px 30px rgba(88,28,135,0.20),
+                0 22px 44px rgba(124,58,237,0.24),
+                0 8px 18px rgba(15,23,42,0.08);
+            animation: orb-dance 5.2s ease-in-out infinite, orb-glow 3.8s ease-in-out infinite;
+            will-change: transform, filter;
+            transition: transform .35s cubic-bezier(.2,.8,.2,1), box-shadow .35s ease;
         }
 
         .wf-orb::before {
             content: "";
             position: absolute;
-            inset: 9px;
+            inset: 8px;
             border-radius: 50%;
             border: 1px solid rgba(255,255,255,0.58);
             background:
-                linear-gradient(115deg, transparent 18%, rgba(255,255,255,0.55) 30%, transparent 42%),
-                linear-gradient(28deg, transparent 30%, rgba(255,255,255,0.28) 46%, transparent 58%);
-            transform: rotate(-25deg) scale(1.08);
-            filter: blur(0.1px);
-            opacity: 0.86;
+                linear-gradient(112deg, transparent 18%, rgba(255,255,255,0.58) 31%, transparent 43%),
+                linear-gradient(30deg, transparent 30%, rgba(255,255,255,0.28) 47%, transparent 60%);
+            transform: rotate(-26deg) scale(1.08);
             z-index: 1;
         }
 
         .wf-orb::after {
             content: "";
             position: absolute;
-            width: 92px;
+            width: 96px;
             height: 38px;
-            left: -9px;
+            left: -11px;
             top: 25px;
             border-radius: 999px;
-            border: 1px solid rgba(255,255,255,0.48);
-            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.30), transparent);
+            border: 1px solid rgba(255,255,255,0.50);
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.34), transparent);
             transform: rotate(-31deg);
-            opacity: 0.72;
             z-index: 2;
         }
 
-        .wf-orb.small {
-            width: 58px;
-            height: 58px;
-            margin-bottom: 0;
-            flex: 0 0 auto;
+        .wf-orb:hover {
+            animation-play-state: paused;
+            transform: translateY(-10px) rotate(9deg) scale(1.13) !important;
+            box-shadow:
+                inset 13px 14px 24px rgba(255,255,255,0.46),
+                inset -18px -20px 30px rgba(88,28,135,0.22),
+                0 30px 70px rgba(124,58,237,0.34),
+                0 10px 22px rgba(15,23,42,0.10);
         }
 
-        .wf-orb.blue-orb {
+        .wf-orb.small { width: 44px; height: 44px; }
+        .wf-orb.medium { width: 62px; height: 62px; }
+        .wf-orb.large { width: 112px; height: 112px; }
+
+        .blue-orb {
             background:
-                radial-gradient(circle at 28% 24%, rgba(255,255,255,0.95) 0 8%, transparent 20%),
-                radial-gradient(circle at 70% 30%, rgba(255,255,255,0.55) 0 7%, transparent 24%),
-                linear-gradient(135deg, #93C5FD 0%, #8B5CF6 46%, #22D3EE 100%);
-            box-shadow: inset 12px 12px 22px rgba(255,255,255,0.38), inset -16px -18px 28px rgba(30, 64, 175, 0.20), 0 18px 36px rgba(59, 130, 246, 0.24), 0 7px 16px rgba(15, 23, 42, 0.08);
+                radial-gradient(circle at 28% 22%, rgba(255,255,255,0.98) 0 7%, transparent 20%),
+                radial-gradient(circle at 72% 28%, rgba(255,255,255,0.54) 0 8%, transparent 25%),
+                linear-gradient(135deg, #A5B4FC 0%, #7C3AED 42%, #0EA5E9 100%);
+            box-shadow: inset 13px 14px 24px rgba(255,255,255,0.42), inset -18px -20px 30px rgba(30,64,175,0.20), 0 22px 44px rgba(59,130,246,0.25), 0 8px 18px rgba(15,23,42,0.08);
         }
 
-        .wf-orb.green-orb {
+        .pink-orb {
             background:
-                radial-gradient(circle at 28% 24%, rgba(255,255,255,0.95) 0 8%, transparent 20%),
-                radial-gradient(circle at 72% 28%, rgba(255,255,255,0.50) 0 7%, transparent 24%),
-                linear-gradient(135deg, #A7F3D0 0%, #34D399 42%, #2563EB 100%);
-            box-shadow: inset 12px 12px 22px rgba(255,255,255,0.40), inset -16px -18px 28px rgba(6, 95, 70, 0.20), 0 18px 36px rgba(16, 185, 129, 0.24), 0 7px 16px rgba(15, 23, 42, 0.08);
+                radial-gradient(circle at 28% 22%, rgba(255,255,255,0.98) 0 7%, transparent 20%),
+                radial-gradient(circle at 72% 28%, rgba(255,255,255,0.54) 0 8%, transparent 25%),
+                linear-gradient(135deg, #FDBA74 0%, #F472B6 42%, #7C3AED 100%);
+            box-shadow: inset 13px 14px 24px rgba(255,255,255,0.42), inset -18px -20px 30px rgba(157,23,77,0.18), 0 22px 44px rgba(219,39,119,0.24), 0 8px 18px rgba(15,23,42,0.08);
+            animation-delay: -1.2s;
         }
 
-        .wf-orb.orange-orb {
+        .green-orb {
             background:
-                radial-gradient(circle at 28% 24%, rgba(255,255,255,0.95) 0 8%, transparent 20%),
-                radial-gradient(circle at 72% 28%, rgba(255,255,255,0.50) 0 7%, transparent 24%),
-                linear-gradient(135deg, #FDBA74 0%, #F472B6 45%, #7C3AED 100%);
-            box-shadow: inset 12px 12px 22px rgba(255,255,255,0.40), inset -16px -18px 28px rgba(154, 52, 18, 0.18), 0 18px 36px rgba(244, 114, 182, 0.24), 0 7px 16px rgba(15, 23, 42, 0.08);
+                radial-gradient(circle at 28% 22%, rgba(255,255,255,0.98) 0 7%, transparent 20%),
+                radial-gradient(circle at 72% 28%, rgba(255,255,255,0.54) 0 8%, transparent 25%),
+                linear-gradient(135deg, #A7F3D0 0%, #34D399 40%, #2563EB 100%);
+            box-shadow: inset 13px 14px 24px rgba(255,255,255,0.42), inset -18px -20px 30px rgba(6,95,70,0.18), 0 22px 44px rgba(16,185,129,0.24), 0 8px 18px rgba(15,23,42,0.08);
+            animation-delay: -2.2s;
         }
 
-        .wf-product-title-row {
+        /* ---------- Hero ---------- */
+        .wf-hero {
+            position: relative;
+            display: grid;
+            grid-template-columns: 0.95fr 1.05fr;
+            gap: 26px;
+            align-items: center;
+            margin-bottom: 22px;
+            min-height: 390px;
+        }
+
+        .wf-floating-bg {
+            position: absolute;
+            right: 7%;
+            top: 24px;
+            width: 230px;
+            height: 230px;
+            border-radius: 50%;
+            background:
+                radial-gradient(circle at 30% 20%, rgba(255,255,255,0.95), transparent 13%),
+                linear-gradient(135deg, rgba(244,114,182,0.42), rgba(124,58,237,0.34), rgba(34,211,238,0.32));
+            filter: blur(0.2px);
+            box-shadow: 0 34px 110px rgba(124,58,237,0.20);
+            animation: background-orb-1 7s ease-in-out infinite;
+            pointer-events: none;
+        }
+
+        .wf-floating-bg.two {
+            width: 82px;
+            height: 82px;
+            right: 1%;
+            top: 215px;
+            opacity: .72;
+            animation: background-orb-2 6s ease-in-out infinite;
+        }
+
+        .wf-kicker {
+            width: fit-content;
             display: flex;
             align-items: center;
-            gap: 16px;
-            margin-bottom: 18px;
+            gap: 10px;
+            padding: 9px 13px;
+            border-radius: 999px;
+            background: rgba(255,255,255,0.72);
+            border: 1px solid rgba(255,255,255,0.82);
+            backdrop-filter: blur(18px);
+            box-shadow: 0 14px 32px rgba(15,23,42,0.06);
+            font-size: 13px;
+            font-weight: 850;
+            color: #7C3AED !important;
+            margin-bottom: 20px;
         }
 
-        .wf-product-title-row h3 {
-            margin: 0;
-            font-size: 28px;
-            letter-spacing: -1.1px;
+        .wf-hero h1 {
+            font-size: clamp(45px, 5.2vw, 76px);
+            line-height: .96;
+            letter-spacing: -4.2px;
+            margin: 0 0 20px 0;
             font-weight: 900;
         }
 
-        .wf-product-title-row h3 span {
-            color: #DB2777 !important;
+        .gradient-word {
+            background: linear-gradient(90deg, #2563EB, #7C3AED, #DB2777);
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent !important;
         }
 
-        .wf-product-title-row p {
-            margin: 3px 0 0 0;
+        .wf-hero-copy {
             color: #64748B !important;
-            font-weight: 600;
+            font-size: 17px;
+            max-width: 610px;
+            margin-bottom: 26px;
         }
 
-        .wf-module-card h3 {
-            margin: 0 0 8px 0;
-            font-size: 20px;
+        .wf-hero-actions {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            flex-wrap: wrap;
+        }
+
+        .wf-main-btn, .wf-soft-btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            min-height: 48px;
+            padding: 0 18px;
+            border-radius: 16px;
+            font-size: 14px;
+            font-weight: 850;
+        }
+
+        .wf-main-btn {
+            color: white !important;
+            background: #101828;
+            box-shadow: 0 16px 34px rgba(16,24,40,0.22);
+        }
+
+        .wf-soft-btn {
+            color: #475569 !important;
+            background: rgba(255,255,255,0.72);
+            border: 1px solid rgba(255,255,255,0.78);
+        }
+
+        .wf-hero-tools {
+            position: relative;
+            z-index: 1;
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 16px;
+        }
+
+        /* ---------- Cards ---------- */
+        .glass-card {
+            position: relative;
+            overflow: hidden;
+            border-radius: var(--radius-xl);
+            background: linear-gradient(145deg, rgba(255,255,255,0.92), rgba(255,255,255,0.58));
+            border: 1px solid rgba(255,255,255,0.78);
+            backdrop-filter: blur(26px) saturate(1.35);
+            -webkit-backdrop-filter: blur(26px) saturate(1.35);
+            box-shadow:
+                inset 0 1px 0 rgba(255,255,255,0.88),
+                var(--shadow-soft);
+            transition: transform .35s cubic-bezier(.2,.8,.2,1), box-shadow .35s ease, border-color .35s ease;
+        }
+
+        .glass-card::before {
+            content: "";
+            position: absolute;
+            top: -30%;
+            left: -70%;
+            width: 52%;
+            height: 160%;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.55), transparent);
+            transform: rotate(18deg);
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        .glass-card:hover {
+            transform: translateY(-8px) scale(1.01);
+            box-shadow:
+                inset 0 1px 0 rgba(255,255,255,0.94),
+                var(--shadow-hover);
+        }
+
+        .glass-card:hover::before {
+            animation: shine-sweep 1s ease forwards;
+        }
+
+        .tool-card {
+            min-height: 270px;
+            padding: 26px;
+            animation: soft-float 7s ease-in-out infinite;
+        }
+
+        .tool-card:nth-child(2) { animation-delay: -1.6s; }
+        .tool-card:nth-child(3) { animation-delay: -3.2s; }
+
+        .tool-card h3 {
+            margin: 18px 0 8px 0;
+            font-size: 21px;
             letter-spacing: -0.6px;
+            font-weight: 900;
         }
 
-        .wf-module-card p {
+        .tool-card p {
             color: #64748B !important;
-            margin: 0 0 16px 0;
+            margin: 0 0 18px 0;
             font-size: 14px;
         }
 
-        .wf-card-tag {
+        .status-pill {
             display: inline-flex;
-            padding: 7px 10px;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 12px;
             border-radius: 999px;
-            background: #F1F5F9;
+            background: rgba(248,250,252,0.88);
+            border: 1px solid rgba(226,232,240,0.78);
             color: #334155 !important;
             font-size: 12px;
-            font-weight: 800;
-        }
-
-        /* Streamlit native elements */
-        .stTabs [data-baseweb="tab-list"] {
-            gap: 10px;
-            background: rgba(255,255,255,0.60);
-            padding: 8px;
-            border-radius: 22px;
-            border: 1px solid #E2E8F0;
-            box-shadow: var(--shadow-sm);
-        }
-
-        .stTabs [data-baseweb="tab"] {
-            height: 48px;
-            border-radius: 16px;
-            padding: 0 18px;
             font-weight: 850;
-            color: #334155 !important;
         }
 
-        .stTabs [aria-selected="true"] {
-            background: #101828 !important;
-            color: #FFFFFF !important;
+        .green-dot, .gray-dot, .pink-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 999px;
+            display: inline-block;
         }
+        .green-dot { background: #10B981; box-shadow: 0 0 0 5px rgba(16,185,129,0.12); }
+        .gray-dot { background: #94A3B8; }
+        .pink-dot { background: #F472B6; box-shadow: 0 0 0 5px rgba(244,114,182,0.12); }
 
-        .stFileUploader section {
-            border-radius: 28px !important;
-            border: 1.5px dashed #CBD5E1 !important;
-            background: rgba(255,255,255,0.78) !important;
-            padding: 34px !important;
-            box-shadow: inset 0 1px 0 rgba(255,255,255,0.7);
-        }
-
-        .stFileUploader label, .stTextInput label, .stSelectbox label, .stCheckbox label {
-            font-weight: 800 !important;
-            color: #101828 !important;
-        }
-
-        .stTextInput input, .stSelectbox [data-baseweb="select"] {
-            border-radius: 16px !important;
-            border-color: #E2E8F0 !important;
+        /* ---------- Native Streamlit Buttons for Tool Selection ---------- */
+        div[data-testid="stHorizontalBlock"] .stButton > button {
             min-height: 48px !important;
         }
 
         .stButton > button, .stDownloadButton > button {
-            border-radius: 16px !important;
+            border-radius: 17px !important;
             min-height: 54px !important;
             border: none !important;
             color: white !important;
             background: #101828 !important;
             font-weight: 850 !important;
-            box-shadow: 0 14px 30px rgba(16, 24, 40, 0.18) !important;
-            transition: transform .2s ease, box-shadow .2s ease !important;
+            box-shadow: 0 16px 34px rgba(16,24,40,0.18) !important;
+            transition: transform .23s ease, box-shadow .23s ease !important;
         }
 
         .stButton > button:hover, .stDownloadButton > button:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 18px 40px rgba(16, 24, 40, 0.24) !important;
+            transform: translateY(-2px) scale(1.006);
+            box-shadow: 0 20px 46px rgba(16,24,40,0.25) !important;
         }
 
-        .wf-tool-shell {
-            background: rgba(255,255,255,0.82);
-            border: 1px solid #E2E8F0;
-            border-radius: 34px;
-            padding: 28px;
-            box-shadow: var(--shadow-md);
-            margin-top: 18px;
+        /* ---------- Workspace ---------- */
+        .workspace-shell {
+            margin-top: 20px;
+            padding: 26px;
+            border-radius: 36px;
         }
 
-        .wf-tool-head {
+        .workspace-head {
             display: flex;
-            align-items: center;
             justify-content: space-between;
+            align-items: center;
             gap: 18px;
             margin-bottom: 22px;
         }
 
-        .wf-tool-head h3 {
+        .workspace-title {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+        }
+
+        .workspace-title h2 {
             margin: 0;
-            font-size: 26px;
+            font-size: 27px;
             letter-spacing: -1px;
             font-weight: 900;
         }
 
-        .wf-tool-head p {
+        .workspace-title h2 span {
+            color: #DB2777 !important;
+        }
+
+        .workspace-title p {
             margin: 4px 0 0 0;
             color: #64748B !important;
             font-size: 14px;
+            font-weight: 650;
         }
 
-        .wf-preview-box {
-            border-radius: 24px;
-            padding: 18px;
-            background: #F8FAFC;
-            border: 1px solid #E2E8F0;
-            min-height: 180px;
+        .workspace-grid {
+            display: grid;
+            grid-template-columns: 1.02fr 0.98fr;
+            gap: 18px;
         }
 
-        .wf-preview-box h4 {
-            margin-top: 0;
-            font-size: 15px;
-        }
-
-        .wf-chip-row {
-            display: flex;
-            gap: 8px;
-            flex-wrap: wrap;
-            margin-top: 10px;
-        }
-
-        .wf-chip {
-            padding: 7px 10px;
-            border-radius: 999px;
-            background: white;
-            border: 1px solid #E2E8F0;
-            color: #475569 !important;
-            font-size: 12px;
-            font-weight: 800;
-        }
-
-        .wf-footer {
-            margin-top: 56px;
+        .panel {
             border-radius: 28px;
-            padding: 26px;
-            background: #101828;
+            padding: 22px;
+        }
+
+        .panel h3 {
+            margin: 0 0 14px 0;
+            font-size: 17px;
+            letter-spacing: -0.4px;
+            font-weight: 900;
+        }
+
+        .empty-preview {
+            min-height: 315px;
+            display: grid;
+            place-items: center;
+            text-align: center;
+            border-radius: 24px;
+            background: rgba(248,250,252,0.72);
+            border: 1px solid rgba(226,232,240,0.75);
+        }
+
+        .empty-preview p {
+            color: #64748B !important;
+            margin: 8px 0 0 0;
+            max-width: 360px;
+        }
+
+        .file-list {
+            margin-top: 14px;
+            display: grid;
+            gap: 8px;
+        }
+
+        .file-row {
             display: flex;
-            justify-content: space-between;
-            gap: 16px;
             align-items: center;
-        }
-
-        .wf-footer strong, .wf-footer span {
-            color: white !important;
-        }
-
-        .wf-footer span {
-            color: #CBD5E1 !important;
+            justify-content: space-between;
+            padding: 11px 13px;
+            border-radius: 15px;
+            background: rgba(248,250,252,0.82);
+            border: 1px solid rgba(226,232,240,0.72);
             font-size: 13px;
+            font-weight: 750;
         }
 
-        /* EASY UPDATE: mehr Sichtbarkeit + Bewegung + Liquid Glass */
-        @keyframes wf-orb-float {
-            0%, 100% { transform: translateY(0) rotate(0deg) scale(1); }
-            50% { transform: translateY(-7px) rotate(3deg) scale(1.04); }
+        .file-row span:last-child {
+            color: #64748B !important;
         }
 
-        .wf-orb {
-            animation: wf-orb-float 5.5s ease-in-out infinite;
-            transition: transform .3s ease, filter .3s ease;
-        }
-
-        .wf-orb:hover {
-            animation-play-state: paused;
-            transform: translateY(-9px) rotate(5deg) scale(1.09);
-            filter: saturate(1.18) contrast(1.05);
-        }
-
-        .wf-tool-shell,
-        .wf-module-card,
-        .wf-preview-box,
-        .wf-trust-card {
-            background: linear-gradient(145deg, rgba(255,255,255,0.92), rgba(255,255,255,0.62)) !important;
-            border: 1px solid rgba(255,255,255,0.76) !important;
-            backdrop-filter: blur(22px) saturate(1.25);
-            -webkit-backdrop-filter: blur(22px) saturate(1.25);
+        /* ---------- Form Elements ---------- */
+        .stFileUploader section {
+            border-radius: 26px !important;
+            border: 1.5px dashed rgba(124,58,237,0.36) !important;
+            background:
+                radial-gradient(circle at 50% 0%, rgba(124,58,237,0.08), transparent 32%),
+                linear-gradient(145deg, rgba(255,255,255,0.94), rgba(255,255,255,0.68)) !important;
+            padding: 34px !important;
             box-shadow:
-                inset 0 1px 0 rgba(255,255,255,0.85),
-                0 22px 60px rgba(15,23,42,0.10) !important;
-            transition: transform .28s ease, box-shadow .28s ease;
+                inset 0 1px 0 rgba(255,255,255,0.88),
+                0 18px 46px rgba(15,23,42,0.08) !important;
+            backdrop-filter: blur(20px) saturate(1.3);
+            -webkit-backdrop-filter: blur(20px) saturate(1.3);
+            transition: transform .25s ease, box-shadow .25s ease, border-color .25s ease;
         }
 
-        .wf-tool-shell:hover,
-        .wf-module-card:hover,
-        .wf-preview-box:hover,
-        .wf-trust-card:hover {
-            transform: translateY(-4px) scale(1.006);
+        .stFileUploader section:hover {
+            transform: translateY(-3px);
+            border-color: rgba(124,58,237,0.58) !important;
             box-shadow:
-                inset 0 1px 0 rgba(255,255,255,0.92),
-                0 30px 80px rgba(15,23,42,0.14) !important;
+                inset 0 1px 0 rgba(255,255,255,0.95),
+                0 24px 64px rgba(124,58,237,0.12) !important;
+        }
+
+        .stFileUploader section svg,
+        .stSelectbox svg,
+        .stTextInput svg {
+            color: #0F172A !important;
+            fill: #0F172A !important;
+            opacity: 1 !important;
+            filter: drop-shadow(0 3px 6px rgba(15,23,42,0.16));
+        }
+
+        .stFileUploader label, .stTextInput label, .stSelectbox label, .stCheckbox label {
+            font-weight: 850 !important;
+            color: #101828 !important;
         }
 
         .stTextInput input,
@@ -751,21 +629,23 @@ def inject_css():
         .stSelectbox [data-baseweb="select"] > div {
             min-height: 56px !important;
             border-radius: 18px !important;
-            border: 1px solid rgba(100,116,139,0.42) !important;
+            border: 1px solid rgba(100,116,139,0.38) !important;
             background: rgba(255,255,255,0.96) !important;
             color: #0B1020 !important;
             font-weight: 800 !important;
             box-shadow:
                 inset 0 1px 0 rgba(255,255,255,0.95),
-                0 14px 34px rgba(15,23,42,0.09) !important;
+                0 14px 34px rgba(15,23,42,0.08) !important;
+            transition: transform .22s ease, box-shadow .22s ease, border-color .22s ease !important;
         }
 
         .stTextInput input:focus,
         .stSelectbox [data-baseweb="select"]:focus-within {
-            border-color: rgba(29,78,216,0.65) !important;
+            border-color: rgba(124,58,237,0.62) !important;
             box-shadow:
-                0 0 0 5px rgba(29,78,216,0.10),
+                0 0 0 5px rgba(124,58,237,0.10),
                 0 18px 44px rgba(15,23,42,0.12) !important;
+            transform: translateY(-1px);
         }
 
         .stTextInput input::placeholder {
@@ -773,169 +653,106 @@ def inject_css():
             font-weight: 700 !important;
         }
 
-        .stFileUploader section {
-            border: 1.5px dashed rgba(100,116,139,0.42) !important;
-            background: linear-gradient(145deg, rgba(255,255,255,0.94), rgba(255,255,255,0.68)) !important;
-            box-shadow:
-                inset 0 1px 0 rgba(255,255,255,0.9),
-                0 18px 48px rgba(15,23,42,0.09) !important;
+        .stAlert {
+            border-radius: 20px !important;
         }
 
-        .stFileUploader svg,
-        .stSelectbox svg,
-        .stTextInput svg {
-            color: #0F172A !important;
-            fill: #0F172A !important;
-            opacity: 1 !important;
-            filter: drop-shadow(0 3px 6px rgba(15,23,42,0.18));
+        /* ---------- Footer ---------- */
+        .wf-footer {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 12px;
+            margin-top: 18px;
+            padding: 14px;
+            border-radius: 24px;
+            background: rgba(255,255,255,0.52);
+            border: 1px solid rgba(255,255,255,0.72);
+            backdrop-filter: blur(18px);
         }
 
-        .stFileUploader section svg {
-            transform: scale(1.16);
-            padding: 10px;
-            border-radius: 18px;
-            background: rgba(255,255,255,0.82);
-            box-shadow: 0 12px 28px rgba(15,23,42,0.12);
+        .wf-footer-item {
+            text-align: center;
+            color: #64748B !important;
+            font-size: 13px;
+            font-weight: 750;
         }
 
-        .stFileUploader button {
-            border-radius: 14px !important;
-            border: 1px solid rgba(100,116,139,0.35) !important;
-            background: rgba(255,255,255,0.96) !important;
-            color: #0B1020 !important;
-            font-weight: 850 !important;
+        @media (max-width: 1050px) {
+            .wf-hero, .workspace-grid { grid-template-columns: 1fr; }
+            .wf-hero-tools { grid-template-columns: 1fr; }
+            .wf-floating-bg { opacity: .35; }
+            .wf-nav-links { display: none; }
+            .wf-footer { grid-template-columns: 1fr 1fr; }
         }
-
-        @media (max-width: 980px) {
-            .wf-hero {
-                grid-template-columns: 1fr;
-            }
-            .wf-module-grid {
-                grid-template-columns: 1fr;
-            }
-            .wf-nav-links {
-                display: none;
-            }
-            .wf-hero-left {
-                padding: 34px;
-            }
-            .wf-hero-title {
-                letter-spacing: -2.4px;
-            }
-            .wf-section-title {
-                align-items: flex-start;
-                flex-direction: column;
-            }
-            .wf-trust-grid, .wf-status-grid {
-                grid-template-columns: 1fr;
-            }
-        }
-        /* FIX: cleaner Streamlit tabs, no red underline, readable active tab */
-        .stTabs [data-baseweb="tab-highlight"] {
-            display: none !important;
-            background: transparent !important;
-        }
-
-        .stTabs [data-baseweb="tab-border"] {
-            display: none !important;
-        }
-
-        .stTabs [data-baseweb="tab"] {
-            color: #0B1020 !important;
-            border-radius: 18px !important;
-            border: 1px solid transparent !important;
-            transition: all .24s ease !important;
-        }
-
-        .stTabs [data-baseweb="tab"] p,
-        .stTabs [data-baseweb="tab"] span {
-            color: #0B1020 !important;
-            font-weight: 800 !important;
-        }
-
-        .stTabs [aria-selected="true"] {
-            background: #101828 !important;
-            border-color: #101828 !important;
-            box-shadow: 0 14px 30px rgba(16,24,40,0.18) !important;
-        }
-
-        .stTabs [aria-selected="true"] p,
-        .stTabs [aria-selected="true"] span {
-            color: #FFFFFF !important;
-        }
-
-        .stTabs [data-baseweb="tab-list"] {
-            border-radius: 28px !important;
-            padding: 10px !important;
-            overflow: hidden !important;
-        }
-
         </style>
         """,
         unsafe_allow_html=True,
     )
 
 
-def nav():
+# ---------- UI Blocks ----------
+def render_nav():
     st.markdown(
         """
         <div class="wf-nav">
             <div class="wf-brand">
-                <div class="wf-logo">W</div>
+                <div class="wf-orb small blue-orb"></div>
                 <div>Wertfile.</div>
             </div>
             <div class="wf-nav-links">
-                <span>Converter</span>
-                <span>Video Tools</span>
-                <span>Security</span>
-                <span>Business Pro</span>
+                <span>Workspace</span>
+                <span>Tools</span>
+                <span>Preise</span>
+                <span>Ressourcen</span>
             </div>
-            <div class="wf-pill"><span class="wf-dot"></span> Local first</div>
+            <div class="wf-nav-cta">
+                <span class="wf-nav-pill">Kostenlos starten</span>
+            </div>
         </div>
         """,
         unsafe_allow_html=True,
     )
 
 
-def hero():
+def render_hero():
     st.markdown(
         """
         <section class="wf-hero">
-            <div class="wf-hero-left">
-                <div class="wf-kicker">🛡️ Smart File Workspace für Business-Use-Cases</div>
-                <h1 class="wf-hero-title">Dateien verarbeiten.<br><span class="wf-gradient-text">Schneller. Sicherer. Schöner.</span></h1>
+            <div class="wf-floating-bg"></div>
+            <div class="wf-floating-bg two"></div>
+            <div>
+                <div class="wf-kicker">
+                    <div class="wf-orb small pink-orb"></div>
+                    File Operations. Smarter.
+                </div>
+                <h1>Ein Workspace.<br><span class="gradient-word">Mehrere Tools.</span></h1>
                 <p class="wf-hero-copy">
-                    Wertfile bündelt smarte Datei-Tools in einem modernen Workspace: Dokumente konvertieren,
-                    Workflows vorbereiten und sensible Files mit einem klaren Business-Prozess bearbeiten.
+                    Wertfile kombiniert leistungsstarke Module für Konvertierung,
+                    Verarbeitung und sichere Datenflüsse — schnell, zuverlässig und audit-ready.
                 </p>
                 <div class="wf-hero-actions">
-                    <span class="wf-btn-main">Jetzt Datei verarbeiten</span>
-                    <span class="wf-btn-secondary">Module ansehen</span>
+                    <span class="wf-main-btn">Loslegen →</span>
+                    <span class="wf-soft-btn">▷ So funktioniert’s</span>
                 </div>
             </div>
-            <div class="wf-hero-right">
-                <div class="wf-app-card">
-                    <div class="wf-app-top">
-                        <div class="wf-app-title">Workspace Status</div>
-                        <div class="wf-app-badge">Secure Session</div>
-                    </div>
-                    <div class="wf-phone">
-                        <div class="wf-mini-row"><span>Aktives Modul</span><strong>JPEG → PDF</strong></div>
-                        <div class="wf-mini-row"><span>Verarbeitung</span><strong>Lokal im Speicher</strong></div>
-                        <div class="wf-mini-row"><span>Export</span><strong>PDF Ready</strong></div>
-                        <div class="wf-status-grid">
-                            <div class="wf-status-item"><b>3</b><small>Module</small></div>
-                            <div class="wf-status-item"><b>0</b><small>Server Uploads</small></div>
-                            <div class="wf-status-item"><b>PDF</b><small>Export</small></div>
-                        </div>
-                    </div>
+            <div class="wf-hero-tools">
+                <div class="glass-card tool-card">
+                    <div class="wf-orb blue-orb"></div>
+                    <h3>Document Converter</h3>
+                    <p>JPG und PNG hochladen, Reihenfolge prüfen und als sauberes PDF exportieren.</p>
+                    <span class="status-pill"><span class="green-dot"></span>Live verfügbar</span>
                 </div>
-                <div class="wf-trust-card">
-                    <div class="wf-trust-grid">
-                        <div class="wf-trust-item"><b>Private</b><small>Session-basiert</small></div>
-                        <div class="wf-trust-item"><b>Fast</b><small>Direkt im App-Flow</small></div>
-                        <div class="wf-trust-item"><b>Clean</b><small>Business UI</small></div>
-                    </div>
+                <div class="glass-card tool-card">
+                    <div class="wf-orb pink-orb"></div>
+                    <h3>Video Tools</h3>
+                    <p>Geplant für Video-Komprimierung, Audio-Export und Format-Workflows.</p>
+                    <span class="status-pill"><span class="pink-dot"></span>Coming soon</span>
+                </div>
+                <div class="glass-card tool-card">
+                    <div class="wf-orb green-orb"></div>
+                    <h3>Security</h3>
+                    <p>Klare Session-Logik, lokale Verarbeitung und optionale Audit-Logs.</p>
+                    <span class="status-pill"><span class="green-dot"></span>Foundation ready</span>
                 </div>
             </div>
         </section>
@@ -944,41 +761,21 @@ def hero():
     )
 
 
-def module_cards():
-    st.markdown(
-        """
-        <div class="wf-section-title">
-            <div>
-                <h2>Ein Workspace. Mehrere Tools.</h2>
-                <p>Die Module sind so aufgebaut, dass Wertfile später zu einer echten File-Operations-Plattform erweitert werden kann.</p>
-            </div>
-        </div>
-        <div class="wf-module-grid">
-            <div class="wf-module-card">
-                <div class="wf-orb blue-orb"></div>
-                <h3>Document Converter</h3>
-                <p>JPG und PNG hochladen, Reihenfolge prüfen und als sauberes PDF exportieren.</p>
-                <span class="wf-card-tag">Live verfügbar</span>
-            </div>
-            <div class="wf-module-card">
-                <div class="wf-orb orange-orb"></div>
-                <h3>Video Tools</h3>
-                <p>Geplant für Video-Komprimierung, Audio-Export und Format-Workflows.</p>
-                <span class="wf-card-tag">Coming soon</span>
-            </div>
-            <div class="wf-module-card">
-                <div class="wf-orb green-orb"></div>
-                <h3>Secure Processing</h3>
-                <p>Klare Session-Logik, lokale Verarbeitung und später optionaler Audit-Log.</p>
-                <span class="wf-card-tag">Foundation ready</span>
-            </div>
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
+def render_tool_selector():
+    c1, c2, c3 = st.columns(3, gap="medium")
+    with c1:
+        if st.button("PDF Workspace öffnen", use_container_width=True):
+            set_tool("pdf")
+    with c2:
+        if st.button("Video Tools öffnen", use_container_width=True):
+            set_tool("video")
+    with c3:
+        if st.button("Security ansehen", use_container_width=True):
+            set_tool("security")
 
 
-def make_pdf(uploaded_files, page_fit="Original", sort_by_name=True):
+# ---------- PDF Logic ----------
+def make_pdf(uploaded_files, page_fit="A4 Portrait", sort_by_name=True):
     files = list(uploaded_files)
     if sort_by_name:
         files = sorted(files, key=lambda f: f.name.lower())
@@ -989,19 +786,14 @@ def make_pdf(uploaded_files, page_fit="Original", sort_by_name=True):
         img = ImageOps.exif_transpose(img).convert("RGB")
 
         if page_fit == "A4 Portrait":
-            # A4 at 150 DPI approx. 1240x1754 px
             canvas = Image.new("RGB", (1240, 1754), "white")
             img.thumbnail((1120, 1634), Image.Resampling.LANCZOS)
-            x = (1240 - img.width) // 2
-            y = (1754 - img.height) // 2
-            canvas.paste(img, (x, y))
+            canvas.paste(img, ((1240 - img.width) // 2, (1754 - img.height) // 2))
             img = canvas
         elif page_fit == "A4 Landscape":
             canvas = Image.new("RGB", (1754, 1240), "white")
             img.thumbnail((1634, 1120), Image.Resampling.LANCZOS)
-            x = (1754 - img.width) // 2
-            y = (1240 - img.height) // 2
-            canvas.paste(img, (x, y))
+            canvas.paste(img, ((1754 - img.width) // 2, (1240 - img.height) // 2))
             img = canvas
 
         images.append(img)
@@ -1019,65 +811,64 @@ def make_pdf(uploaded_files, page_fit="Original", sort_by_name=True):
     return pdf_buffer
 
 
-def document_converter():
-    st.markdown('<div class="wf-tool-shell">', unsafe_allow_html=True)
+def render_pdf_workspace():
     st.markdown(
         """
-        <div class="wf-tool-head">
-            <div class="wf-product-title-row">
-                <div class="wf-orb small blue-orb"></div>
-                <div>
-                    <h3><span>PDF</span> Workspace</h3>
-                    <p>Upload, Reihenfolge, Seitenformat und Export in einem Premium-Flow.</p>
+        <div class="glass-card workspace-shell">
+            <div class="workspace-head">
+                <div class="workspace-title">
+                    <div class="wf-orb medium blue-orb"></div>
+                    <div>
+                        <h2><span>PDF</span> Workspace</h2>
+                        <p>Upload, Reihenfolge, Seitenformat und Export in einem Premium-Flow.</p>
+                    </div>
                 </div>
+                <span class="status-pill"><span class="green-dot"></span>Production Module</span>
             </div>
-            <div class="wf-card-tag">Production Module</div>
-        </div>
         """,
         unsafe_allow_html=True,
     )
 
-    left, right = st.columns([1.15, 0.85], gap="large")
+    left, right = st.columns([1.05, 0.95], gap="large")
 
     with left:
+        st.markdown('<div class="glass-card panel">', unsafe_allow_html=True)
+        st.markdown("<h3>Dateien hochladen</h3>", unsafe_allow_html=True)
+
         uploaded_files = st.file_uploader(
-            "Bilder hier ablegen",
+            "Ziehe deine Bilder hier rein oder wähle Dateien aus",
             type=["jpg", "jpeg", "png"],
             accept_multiple_files=True,
-            help="Mehrere Bilder auswählen. Optional nach Dateiname sortieren lassen.",
+            help="Unterstützt JPG, JPEG und PNG. Mehrere Bilder werden zu einem PDF zusammengeführt.",
         )
 
+        st.markdown("<h3 style='margin-top:20px;'>Einstellungen</h3>", unsafe_allow_html=True)
         c1, c2 = st.columns(2)
         with c1:
-            page_fit = st.selectbox(
-                "PDF-Seitenformat",
-                ["Original", "A4 Portrait", "A4 Landscape"],
-                index=1,
-            )
+            page_fit = st.selectbox("Seitenformat", ["A4 Portrait", "A4 Landscape", "Original"], index=0)
         with c2:
             sort_by_name = st.checkbox("Nach Dateiname sortieren", value=True)
 
         if uploaded_files:
+            files_for_display = sorted(uploaded_files, key=lambda f: f.name.lower()) if sort_by_name else uploaded_files
             total_size_mb = sum(file.size for file in uploaded_files) / (1024 * 1024)
-            st.markdown(
-                f"""
-                <div class="wf-chip-row">
-                    <span class="wf-chip">{len(uploaded_files)} Datei(en)</span>
-                    <span class="wf-chip">{total_size_mb:.2f} MB</span>
-                    <span class="wf-chip">{page_fit}</span>
-                    <span class="wf-chip">Export: PDF</span>
-                </div>
-                """,
-                unsafe_allow_html=True,
-            )
+            st.markdown('<div class="file-list">', unsafe_allow_html=True)
+            for file in files_for_display:
+                st.markdown(
+                    f'<div class="file-row"><span>📄 {file.name}</span><span>{file.size / (1024 * 1024):.2f} MB</span></div>',
+                    unsafe_allow_html=True,
+                )
+            st.markdown('</div>', unsafe_allow_html=True)
 
-            if st.button("PDF generieren", use_container_width=True):
+            st.caption(f"Gesamtgröße: {total_size_mb:.2f} MB · {len(uploaded_files)} Datei(en)")
+
+            if st.button("PDF erstellen", use_container_width=True):
                 try:
                     pdf_buffer = make_pdf(uploaded_files, page_fit, sort_by_name)
                     timestamp = datetime.now().strftime("%Y%m%d_%H%M")
                     st.success("Dein PDF ist bereit.")
                     st.download_button(
-                        "📥 PDF herunterladen",
+                        "PDF herunterladen",
                         data=pdf_buffer.getvalue(),
                         file_name=f"wertfile_export_{timestamp}.pdf",
                         mime="application/pdf",
@@ -1086,149 +877,137 @@ def document_converter():
                 except Exception as e:
                     st.error(f"PDF konnte nicht erstellt werden: {e}")
         else:
-            st.info("Lade mindestens ein Bild hoch, um den Export zu starten.")
+            st.info("Lade mindestens ein Bild hoch, um dein PDF zu erstellen.")
+
+        st.markdown('</div>', unsafe_allow_html=True)
 
     with right:
-        st.markdown('<div class="wf-preview-box">', unsafe_allow_html=True)
-        st.markdown("<h4>Live Preview</h4>", unsafe_allow_html=True)
+        st.markdown('<div class="glass-card panel">', unsafe_allow_html=True)
+        st.markdown("<h3>Vorschau & Informationen</h3>", unsafe_allow_html=True)
 
         if uploaded_files:
-            preview_files = list(uploaded_files)
-            if sort_by_name:
-                preview_files = sorted(preview_files, key=lambda f: f.name.lower())
-
-            preview = preview_files[0]
-            img = Image.open(preview)
+            files_for_preview = sorted(uploaded_files, key=lambda f: f.name.lower()) if sort_by_name else uploaded_files
+            img = Image.open(files_for_preview[0])
             img = ImageOps.exif_transpose(img)
-            st.image(img, caption=f"Erste Seite: {preview.name}", use_container_width=True)
-
-            if len(preview_files) > 1:
-                with st.expander("Alle Dateien anzeigen"):
-                    for idx, file in enumerate(preview_files, start=1):
-                        st.write(f"{idx}. {file.name}")
-        else:
+            st.image(img, caption=f"Erste Seite: {files_for_preview[0].name}", use_container_width=True)
             st.markdown(
-                """
-                <p style="color:#64748B !important;">Sobald du Bilder hochlädst, erscheint hier eine Vorschau der ersten PDF-Seite.</p>
-                <div class="wf-chip-row">
-                    <span class="wf-chip">Drag & Drop</span>
-                    <span class="wf-chip">A4 Export</span>
-                    <span class="wf-chip">Multi Page</span>
+                f"""
+                <div class="file-list">
+                    <div class="file-row"><span>Dateien</span><span>{len(uploaded_files)}</span></div>
+                    <div class="file-row"><span>Seitenformat</span><span>{page_fit}</span></div>
+                    <div class="file-row"><span>Verarbeitung</span><span>Session-basiert</span></div>
                 </div>
                 """,
                 unsafe_allow_html=True,
             )
+        else:
+            st.markdown(
+                """
+                <div class="empty-preview">
+                    <div>
+                        <div class="wf-orb medium pink-orb" style="margin:0 auto 18px auto;"></div>
+                        <h3>Deine Dateien erscheinen hier.</h3>
+                        <p>Sortiere, prüfe die Reihenfolge und exportiere ein sauberes, optimiertes PDF.</p>
+                    </div>
+                </div>
+                """,
+                unsafe_allow_html=True,
+            )
+
         st.markdown('</div>', unsafe_allow_html=True)
 
-    st.markdown('</div>', unsafe_allow_html=True)
+    st.markdown("</div>", unsafe_allow_html=True)
 
 
-def video_tools():
-    st.markdown('<div class="wf-tool-shell">', unsafe_allow_html=True)
+def render_video_workspace():
     st.markdown(
         """
-        <div class="wf-tool-head">
-            <div class="wf-product-title-row">
-                <div class="wf-orb small orange-orb"></div>
-                <div>
-                    <h3><span>Video</span> Tools</h3>
-                    <p>UI vorbereitet. Die echte Conversion sollte später über eine saubere Backend-Pipeline laufen.</p>
+        <div class="glass-card workspace-shell">
+            <div class="workspace-head">
+                <div class="workspace-title">
+                    <div class="wf-orb medium pink-orb"></div>
+                    <div>
+                        <h2><span>Video</span> Tools</h2>
+                        <p>Vorbereitet für Komprimierung, Audio-Export und Format-Workflows.</p>
+                    </div>
                 </div>
+                <span class="status-pill"><span class="pink-dot"></span>Coming soon</span>
             </div>
-            <div class="wf-card-tag">Coming soon</div>
-        </div>
         """,
         unsafe_allow_html=True,
     )
 
     left, right = st.columns([1, 1], gap="large")
     with left:
-        video_url = st.text_input(
-            "Video URL",
-            placeholder="https://www.example.com/video",
-            help="Später kann hier eine erlaubte Quelle oder ein eigener Upload verarbeitet werden.",
-        )
-        target_format = st.selectbox("Zielformat", ["MP3 Audio", "MP4 Video", "Compressed MP4", "WebM"])
-        quality = st.selectbox("Qualität", ["High", "Balanced", "Small File"])
-
-        c1, c2 = st.columns(2)
-        with c1:
-            if st.button("🎵 Audio vorbereiten", use_container_width=True):
-                st.warning("Backend noch nicht verbunden. UI-Flow ist vorbereitet.")
-        with c2:
-            if st.button("🎞️ Video vorbereiten", use_container_width=True):
-                st.warning("Backend noch nicht verbunden. UI-Flow ist vorbereitet.")
+        st.markdown('<div class="glass-card panel">', unsafe_allow_html=True)
+        st.markdown("<h3>Video Workflow</h3>", unsafe_allow_html=True)
+        st.text_input("Video URL", placeholder="https://www.example.com/video")
+        st.selectbox("Zielformat", ["MP3 Audio", "MP4 Video", "Compressed MP4", "WebM"])
+        st.selectbox("Qualität", ["High", "Balanced", "Small File"])
+        if st.button("Workflow vorbereiten", use_container_width=True):
+            st.warning("Backend noch nicht verbunden. Die UI ist vorbereitet.")
+        st.markdown('</div>', unsafe_allow_html=True)
 
     with right:
         st.markdown(
             """
-            <div class="wf-preview-box">
-                <h4>Geplante Pipeline</h4>
-                <p style="color:#64748B !important;">Für ein echtes Produkt würde ich dieses Modul als eigenen Worker bauen:</p>
-                <div class="wf-chip-row">
-                    <span class="wf-chip">Upload prüfen</span>
-                    <span class="wf-chip">Job Queue</span>
-                    <span class="wf-chip">ffmpeg</span>
-                    <span class="wf-chip">Download Token</span>
-                    <span class="wf-chip">Auto Delete</span>
+            <div class="glass-card panel">
+                <h3>Geplante Pipeline</h3>
+                <div class="empty-preview">
+                    <div>
+                        <div class="wf-orb medium pink-orb" style="margin:0 auto 18px auto;"></div>
+                        <h3>Sauberer Backend-Flow</h3>
+                        <p>Upload prüfen → Job Queue → ffmpeg → Download Token → Auto Delete.</p>
+                    </div>
                 </div>
             </div>
             """,
             unsafe_allow_html=True,
         )
 
-    st.markdown('</div>', unsafe_allow_html=True)
+    st.markdown("</div>", unsafe_allow_html=True)
 
 
-def security_panel():
-    st.markdown('<div class="wf-tool-shell">', unsafe_allow_html=True)
+def render_security_workspace():
     st.markdown(
         """
-        <div class="wf-tool-head">
-            <div class="wf-product-title-row">
-                <div class="wf-orb small green-orb"></div>
-                <div>
-                    <h3><span>Security</span> Layer</h3>
-                    <p>Positionierung für Vertrauen: wichtig, wenn Wertfile später echte Kundendaten verarbeitet.</p>
+        <div class="glass-card workspace-shell">
+            <div class="workspace-head">
+                <div class="workspace-title">
+                    <div class="wf-orb medium green-orb"></div>
+                    <div>
+                        <h2><span>Security</span> Layer</h2>
+                        <p>Vertrauen, Datenschutz und saubere File-Verarbeitung als Produktbasis.</p>
+                    </div>
                 </div>
+                <span class="status-pill"><span class="green-dot"></span>Foundation ready</span>
             </div>
-            <div class="wf-card-tag">Business Trust</div>
-        </div>
-        <div class="wf-module-grid">
-            <div class="wf-module-card">
-                <div class="wf-orb green-orb"></div>
-                <h3>Session-basiert</h3>
-                <p>Dateien werden aktuell nur während der Session verarbeitet und nicht dauerhaft gespeichert.</p>
-                <span class="wf-card-tag">Good start</span>
-            </div>
-            <div class="wf-module-card">
-                <div class="wf-orb blue-orb"></div>
-                <h3>Audit-ready</h3>
-                <p>Später: Verarbeitungsprotokolle, Löschfristen, Nutzerrollen und Export-Historie.</p>
-                <span class="wf-card-tag">Next step</span>
-            </div>
-            <div class="wf-module-card">
-                <div class="wf-orb orange-orb"></div>
-                <h3>Auto Delete</h3>
-                <p>Für eine echte SaaS-Version: automatische Löschung nach Download oder Zeitfenster.</p>
-                <span class="wf-card-tag">Roadmap</span>
+            <div class="workspace-grid">
+                <div class="glass-card panel">
+                    <div class="wf-orb green-orb"></div>
+                    <h3>Session-basiert</h3>
+                    <p style="color:#64748B !important;">Dateien werden aktuell nur während der Session verarbeitet und nicht dauerhaft gespeichert.</p>
+                </div>
+                <div class="glass-card panel">
+                    <div class="wf-orb blue-orb"></div>
+                    <h3>Audit-ready</h3>
+                    <p style="color:#64748B !important;">Später möglich: Verarbeitungsprotokolle, Löschfristen, Nutzerrollen und Export-Historie.</p>
+                </div>
             </div>
         </div>
         """,
         unsafe_allow_html=True,
     )
-    st.markdown('</div>', unsafe_allow_html=True)
 
 
-def footer():
+def render_footer():
     st.markdown(
         """
         <div class="wf-footer">
-            <div>
-                <strong>Wertfile.</strong><br>
-                <span>Smart File Workspace — Technology Germany</span>
-            </div>
-            <span>Local first · Secure by design · Business Pro</span>
+            <div class="wf-footer-item">🔒 DSGVO-konform gedacht</div>
+            <div class="wf-footer-item">⚡ Schnelle Verarbeitung</div>
+            <div class="wf-footer-item">🧾 Audit-ready Roadmap</div>
+            <div class="wf-footer-item">🇩🇪 Produktidee Germany</div>
         </div>
         """,
         unsafe_allow_html=True,
@@ -1237,23 +1016,15 @@ def footer():
 
 # ---------- Render ----------
 inject_css()
-nav()
-hero()
-module_cards()
+render_nav()
+render_hero()
+render_tool_selector()
 
-tab_pdf, tab_video, tab_security = st.tabs([
-    "Document Converter",
-    "Video Tools",
-    "Security",
-])
+if st.session_state.active_tool == "pdf":
+    render_pdf_workspace()
+elif st.session_state.active_tool == "video":
+    render_video_workspace()
+else:
+    render_security_workspace()
 
-with tab_pdf:
-    document_converter()
-
-with tab_video:
-    video_tools()
-
-with tab_security:
-    security_panel()
-
-footer()
+render_footer()
