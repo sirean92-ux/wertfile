@@ -48,6 +48,11 @@ if "active_workspace" not in st.session_state:
 if "active_pdf_tool" not in st.session_state:
     st.session_state.active_pdf_tool = "image_to_pdf"
 
+# URL-Navigation: erlaubt klickbare Kacheln ohne extra Button-Leisten
+workspace_from_url = st.query_params.get("workspace")
+if workspace_from_url in ["home", "pdf", "video", "image", "office"]:
+    st.session_state.active_workspace = workspace_from_url
+
 
 # ---------- CSS ----------
 def inject_css() -> None:
@@ -232,6 +237,11 @@ def inject_css() -> None:
             margin-bottom: 18px;
         }
 
+        .wf-workspace-link {
+            text-decoration: none !important;
+            display: block;
+        }
+
         .wf-workspace-card {
             min-height: 310px;
             background: #FFFFFF;
@@ -243,8 +253,21 @@ def inject_css() -> None:
         }
 
         .wf-workspace-card:hover {
-            transform: translateY(-4px);
+            transform: translateY(-6px) scale(1.01);
             box-shadow: var(--shadow-hover);
+            cursor: pointer;
+        }
+
+        .wf-card-cta {
+            display: inline-flex;
+            margin-top: 18px;
+            padding: 10px 13px;
+            border-radius: 999px;
+            background: rgba(255,255,255,0.78);
+            border: 1px solid rgba(226,232,240,0.85);
+            color: #1D4ED8 !important;
+            font-size: 13px;
+            font-weight: 900;
         }
 
         .wf-workspace-card.active-pdf { background: linear-gradient(145deg, #FFFFFF, var(--blue-soft)); border-color: rgba(37,99,235,0.36); }
@@ -783,45 +806,52 @@ def render_header() -> None:
 def render_workspace_selector() -> None:
     st.markdown(
         """
-        <div class="wf-section-title"><div><h2>Wähle deinen Workspace</h2><p>Erst auswählen, dann kommt nur die passende Seite. Das hält Wertfile schnell.</p></div></div>
+        <div class="wf-section-title"><div><h2>Wähle deinen Workspace</h2><p>Klicke direkt auf eine Kachel. Danach lädt nur der passende Bereich.</p></div></div>
         <div class="wf-workspace-grid">
-            <div class="wf-workspace-card active-pdf"><div class="wf-orb"></div><h3>PDF Workspace</h3><p>Zusammenführen, teilen und konvertieren.</p><div class="wf-tags"><span class="wf-tag">Merge</span><span class="wf-tag">Split</span><span class="wf-tag">Word</span></div></div>
-            <div class="wf-workspace-card active-video"><div class="wf-orb video"></div><h3>Video & Audio</h3><p>MP3, MP4 und Komprimierung.</p><div class="wf-tags"><span class="wf-tag">MP3</span><span class="wf-tag">MP4</span><span class="wf-tag">Soon</span></div></div>
-            <div class="wf-workspace-card active-image"><div class="wf-orb image"></div><h3>Image Tools</h3><p>Bilder konvertieren und optimieren.</p><div class="wf-tags"><span class="wf-tag">JPG</span><span class="wf-tag">PNG</span><span class="wf-tag">WEBP</span></div></div>
-            <div class="wf-workspace-card active-office"><div class="wf-orb office"></div><h3>Office Convert</h3><p>Word, Excel und PowerPoint Workflows.</p><div class="wf-tags"><span class="wf-tag">Word</span><span class="wf-tag">Excel</span><span class="wf-tag">PDF</span></div></div>
+            <a class="wf-workspace-link" href="?workspace=pdf" target="_self">
+                <div class="wf-workspace-card active-pdf">
+                    <div class="wf-orb"></div>
+                    <h3>PDF Workspace</h3>
+                    <p>Zusammenführen, teilen und konvertieren.</p>
+                    <div class="wf-tags"><span class="wf-tag">Merge</span><span class="wf-tag">Split</span><span class="wf-tag">Word</span></div>
+                    <span class="wf-card-cta">Öffnen →</span>
+                </div>
+            </a>
+            <a class="wf-workspace-link" href="?workspace=video" target="_self">
+                <div class="wf-workspace-card active-video">
+                    <div class="wf-orb video"></div>
+                    <h3>Video & Audio</h3>
+                    <p>MP3, MP4 und Komprimierung.</p>
+                    <div class="wf-tags"><span class="wf-tag">MP3</span><span class="wf-tag">MP4</span><span class="wf-tag">Soon</span></div>
+                    <span class="wf-card-cta">Öffnen →</span>
+                </div>
+            </a>
+            <a class="wf-workspace-link" href="?workspace=image" target="_self">
+                <div class="wf-workspace-card active-image">
+                    <div class="wf-orb image"></div>
+                    <h3>Image Tools</h3>
+                    <p>Bilder konvertieren und optimieren.</p>
+                    <div class="wf-tags"><span class="wf-tag">JPG</span><span class="wf-tag">PNG</span><span class="wf-tag">WEBP</span></div>
+                    <span class="wf-card-cta">Öffnen →</span>
+                </div>
+            </a>
+            <a class="wf-workspace-link" href="?workspace=office" target="_self">
+                <div class="wf-workspace-card active-office">
+                    <div class="wf-orb office"></div>
+                    <h3>Office Convert</h3>
+                    <p>Word, Excel und PowerPoint Workflows.</p>
+                    <div class="wf-tags"><span class="wf-tag">Word</span><span class="wf-tag">Excel</span><span class="wf-tag">PDF</span></div>
+                    <span class="wf-card-cta">Öffnen →</span>
+                </div>
+            </a>
         </div>
         """,
         unsafe_allow_html=True,
     )
 
-    st.markdown('<div class="wf-launch-title">Workspace starten</div>', unsafe_allow_html=True)
-    row1_col1, row1_col2 = st.columns(2, gap="medium")
-    with row1_col1:
-        if st.button("PDF Workspace öffnen →", use_container_width=True):
-            st.session_state.active_workspace = "pdf"
-            st.rerun()
-    with row1_col2:
-        if st.button("Video & Audio öffnen →", use_container_width=True):
-            st.session_state.active_workspace = "video"
-            st.rerun()
-
-    row2_col1, row2_col2 = st.columns(2, gap="medium")
-    with row2_col1:
-        if st.button("Image Tools öffnen →", use_container_width=True):
-            st.session_state.active_workspace = "image"
-            st.rerun()
-    with row2_col2:
-        if st.button("Office Convert öffnen →", use_container_width=True):
-            st.session_state.active_workspace = "office"
-            st.rerun()
-
 
 def render_workspace_back() -> None:
-    c1, c2 = st.columns([1, 4])
-    with c1:
-        if st.button("← Zur Auswahl", use_container_width=True):
-            st.session_state.active_workspace = "home"
-            st.rerun()
+    st.markdown('<a class="wf-card-cta" href="?workspace=home" target="_self">← Zur Auswahl</a>', unsafe_allow_html=True)
 
 
 def render_pdf_tool_selector() -> None:
