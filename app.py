@@ -6,7 +6,7 @@ from datetime import datetime
 # =========================================================
 # WERTFILE — Premium Streamlit Web App
 # Ziel: Moderne SaaS-/Fintech-Optik ähnlich Finom, Qonto, Linear
-# Module([finom.co](https://finom.co/?utm_source=chatgpt.com))aceholder, Security Layer
+# Module placeholders, Security Layer
 # =========================================================
 
 st.set_page_config(
@@ -438,6 +438,113 @@ def inject_css():
         .violet { background: var(--violet-soft); }
         .orange { background: var(--orange-soft); }
 
+        /* Finom-inspired 3D Orb */
+        .wf-orb {
+            width: 74px;
+            height: 74px;
+            border-radius: 999px;
+            position: relative;
+            isolation: isolate;
+            margin-bottom: 18px;
+            background:
+                radial-gradient(circle at 28% 24%, rgba(255,255,255,0.95) 0 8%, transparent 20%),
+                radial-gradient(circle at 72% 28%, rgba(255,255,255,0.55) 0 7%, transparent 24%),
+                radial-gradient(circle at 66% 76%, rgba(255,255,255,0.38) 0 9%, transparent 28%),
+                linear-gradient(135deg, rgba(255, 130, 210, 0.98) 0%, rgba(169, 110, 255, 0.94) 42%, rgba(76, 201, 240, 0.86) 100%);
+            box-shadow:
+                inset 12px 12px 22px rgba(255,255,255,0.36),
+                inset -16px -18px 28px rgba(88, 28, 135, 0.20),
+                0 18px 36px rgba(168, 85, 247, 0.24),
+                0 7px 16px rgba(15, 23, 42, 0.08);
+            overflow: hidden;
+            transform: translateZ(0);
+        }
+
+        .wf-orb::before {
+            content: "";
+            position: absolute;
+            inset: 9px;
+            border-radius: 50%;
+            border: 1px solid rgba(255,255,255,0.58);
+            background:
+                linear-gradient(115deg, transparent 18%, rgba(255,255,255,0.55) 30%, transparent 42%),
+                linear-gradient(28deg, transparent 30%, rgba(255,255,255,0.28) 46%, transparent 58%);
+            transform: rotate(-25deg) scale(1.08);
+            filter: blur(0.1px);
+            opacity: 0.86;
+            z-index: 1;
+        }
+
+        .wf-orb::after {
+            content: "";
+            position: absolute;
+            width: 92px;
+            height: 38px;
+            left: -9px;
+            top: 25px;
+            border-radius: 999px;
+            border: 1px solid rgba(255,255,255,0.48);
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.30), transparent);
+            transform: rotate(-31deg);
+            opacity: 0.72;
+            z-index: 2;
+        }
+
+        .wf-orb.small {
+            width: 58px;
+            height: 58px;
+            margin-bottom: 0;
+            flex: 0 0 auto;
+        }
+
+        .wf-orb.blue-orb {
+            background:
+                radial-gradient(circle at 28% 24%, rgba(255,255,255,0.95) 0 8%, transparent 20%),
+                radial-gradient(circle at 70% 30%, rgba(255,255,255,0.55) 0 7%, transparent 24%),
+                linear-gradient(135deg, #93C5FD 0%, #8B5CF6 46%, #22D3EE 100%);
+            box-shadow: inset 12px 12px 22px rgba(255,255,255,0.38), inset -16px -18px 28px rgba(30, 64, 175, 0.20), 0 18px 36px rgba(59, 130, 246, 0.24), 0 7px 16px rgba(15, 23, 42, 0.08);
+        }
+
+        .wf-orb.green-orb {
+            background:
+                radial-gradient(circle at 28% 24%, rgba(255,255,255,0.95) 0 8%, transparent 20%),
+                radial-gradient(circle at 72% 28%, rgba(255,255,255,0.50) 0 7%, transparent 24%),
+                linear-gradient(135deg, #A7F3D0 0%, #34D399 42%, #2563EB 100%);
+            box-shadow: inset 12px 12px 22px rgba(255,255,255,0.40), inset -16px -18px 28px rgba(6, 95, 70, 0.20), 0 18px 36px rgba(16, 185, 129, 0.24), 0 7px 16px rgba(15, 23, 42, 0.08);
+        }
+
+        .wf-orb.orange-orb {
+            background:
+                radial-gradient(circle at 28% 24%, rgba(255,255,255,0.95) 0 8%, transparent 20%),
+                radial-gradient(circle at 72% 28%, rgba(255,255,255,0.50) 0 7%, transparent 24%),
+                linear-gradient(135deg, #FDBA74 0%, #F472B6 45%, #7C3AED 100%);
+            box-shadow: inset 12px 12px 22px rgba(255,255,255,0.40), inset -16px -18px 28px rgba(154, 52, 18, 0.18), 0 18px 36px rgba(244, 114, 182, 0.24), 0 7px 16px rgba(15, 23, 42, 0.08);
+        }
+
+        .wf-product-title-row {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            margin-bottom: 18px;
+        }
+
+        .wf-product-title-row h3 {
+            margin: 0;
+            font-size: 28px;
+            letter-spacing: -1.1px;
+            font-weight: 900;
+        }
+
+        .wf-product-title-row h3 span {
+            color: #DB2777 !important;
+        }
+
+        .wf-product-title-row p {
+            margin: 3px 0 0 0;
+            color: #64748B !important;
+            font-weight: 600;
+        }
+
         .wf-module-card h3 {
             margin: 0 0 8px 0;
             font-size: 20px;
@@ -707,19 +814,19 @@ def module_cards():
         </div>
         <div class="wf-module-grid">
             <div class="wf-module-card">
-                <div class="wf-icon blue">📄</div>
+                <div class="wf-orb blue-orb"></div>
                 <h3>Document Converter</h3>
                 <p>JPG und PNG hochladen, Reihenfolge prüfen und als sauberes PDF exportieren.</p>
                 <span class="wf-card-tag">Live verfügbar</span>
             </div>
             <div class="wf-module-card">
-                <div class="wf-icon violet">🎬</div>
+                <div class="wf-orb orange-orb"></div>
                 <h3>Video Tools</h3>
                 <p>Geplant für Video-Komprimierung, Audio-Export und Format-Workflows.</p>
                 <span class="wf-card-tag">Coming soon</span>
             </div>
             <div class="wf-module-card">
-                <div class="wf-icon green">🔐</div>
+                <div class="wf-orb green-orb"></div>
                 <h3>Secure Processing</h3>
                 <p>Klare Session-Logik, lokale Verarbeitung und später optionaler Audit-Log.</p>
                 <span class="wf-card-tag">Foundation ready</span>
@@ -776,9 +883,12 @@ def document_converter():
     st.markdown(
         """
         <div class="wf-tool-head">
-            <div>
-                <h3>📄 JPEG / PNG zu PDF</h3>
-                <p>Upload, Reihenfolge, Seitenformat und Export in einem Premium-Flow.</p>
+            <div class="wf-product-title-row">
+                <div class="wf-orb small blue-orb"></div>
+                <div>
+                    <h3><span>PDF</span> Workspace</h3>
+                    <p>Upload, Reihenfolge, Seitenformat und Export in einem Premium-Flow.</p>
+                </div>
             </div>
             <div class="wf-card-tag">Production Module</div>
         </div>
@@ -877,9 +987,12 @@ def video_tools():
     st.markdown(
         """
         <div class="wf-tool-head">
-            <div>
-                <h3>🎬 Video Tools</h3>
-                <p>UI vorbereitet. Die echte Conversion sollte später über eine saubere Backend-Pipeline laufen.</p>
+            <div class="wf-product-title-row">
+                <div class="wf-orb small orange-orb"></div>
+                <div>
+                    <h3><span>Video</span> Tools</h3>
+                    <p>UI vorbereitet. Die echte Conversion sollte später über eine saubere Backend-Pipeline laufen.</p>
+                </div>
             </div>
             <div class="wf-card-tag">Coming soon</div>
         </div>
@@ -931,27 +1044,30 @@ def security_panel():
     st.markdown(
         """
         <div class="wf-tool-head">
-            <div>
-                <h3>🔐 Security Layer</h3>
-                <p>Positionierung für Vertrauen: wichtig, wenn Wertfile später echte Kundendaten verarbeitet.</p>
+            <div class="wf-product-title-row">
+                <div class="wf-orb small green-orb"></div>
+                <div>
+                    <h3><span>Security</span> Layer</h3>
+                    <p>Positionierung für Vertrauen: wichtig, wenn Wertfile später echte Kundendaten verarbeitet.</p>
+                </div>
             </div>
             <div class="wf-card-tag">Business Trust</div>
         </div>
         <div class="wf-module-grid">
             <div class="wf-module-card">
-                <div class="wf-icon green">🧠</div>
+                <div class="wf-orb green-orb"></div>
                 <h3>Session-basiert</h3>
                 <p>Dateien werden aktuell nur während der Session verarbeitet und nicht dauerhaft gespeichert.</p>
                 <span class="wf-card-tag">Good start</span>
             </div>
             <div class="wf-module-card">
-                <div class="wf-icon blue">🧾</div>
+                <div class="wf-orb blue-orb"></div>
                 <h3>Audit-ready</h3>
                 <p>Später: Verarbeitungsprotokolle, Löschfristen, Nutzerrollen und Export-Historie.</p>
                 <span class="wf-card-tag">Next step</span>
             </div>
             <div class="wf-module-card">
-                <div class="wf-icon orange">🗑️</div>
+                <div class="wf-orb orange-orb"></div>
                 <h3>Auto Delete</h3>
                 <p>Für eine echte SaaS-Version: automatische Löschung nach Download oder Zeitfenster.</p>
                 <span class="wf-card-tag">Roadmap</span>
