@@ -9,7 +9,7 @@ from typing import List, Tuple
 
 # Optional dependencies
 try:
-    import fitz  # PyMuPDF für PDF → Word
+    import fitz  # PyMuPDF: PDF → Word, PDF Merge, PDF Split
 except ImportError:
     fitz = None
 
@@ -21,13 +21,11 @@ except ImportError:
     Pt = None
 
 # =========================================================
-# WERTFILE 1.2 CLEAN
-# Fokus: stabil, clean, keine unnötigen Elemente
-# Funktionen:
-# 1. Bild → PDF
-# 2. PDF → Word für Text-PDFs
-# 3. PDF Merge
-# 4. PDF Split
+# WERTFILE 1.3 CLEAN WORKSPACES
+# Fokus: klare Startseite mit 4 großen Workspaces
+# Aktive Tools:
+# PDF Workspace: Bild → PDF, PDF → Word, PDF Merge, PDF Split
+# Coming soon: Video & Audio, Image Tools, Office Convert
 # =========================================================
 
 APP_NAME = "Wertfile"
@@ -38,14 +36,17 @@ SUPPORTED_IMAGE_TYPES = ["jpg", "jpeg", "png", "webp"]
 SUPPORTED_PDF_TYPES = ["pdf"]
 
 st.set_page_config(
-    page_title=f"{APP_NAME} | File Converter",
+    page_title=f"{APP_NAME} | File Workspace",
     page_icon="🛡️",
     layout="wide",
     initial_sidebar_state="collapsed",
 )
 
-if "active_tool" not in st.session_state:
-    st.session_state.active_tool = "image_to_pdf"
+if "active_workspace" not in st.session_state:
+    st.session_state.active_workspace = "pdf"
+
+if "active_pdf_tool" not in st.session_state:
+    st.session_state.active_pdf_tool = "image_to_pdf"
 
 
 # ---------- CSS ----------
@@ -56,8 +57,6 @@ def inject_css() -> None:
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
 
         :root {
-            --bg: #F7F9FC;
-            --card: #FFFFFF;
             --ink: #0F172A;
             --muted: #64748B;
             --line: #E2E8F0;
@@ -71,37 +70,38 @@ def inject_css() -> None:
             --pink-soft: #FDF2F8;
             --orange: #F97316;
             --orange-soft: #FFF7ED;
+            --cyan-soft: #ECFEFF;
             --shadow: 0 16px 44px rgba(15, 23, 42, 0.06);
+            --shadow-hover: 0 24px 70px rgba(15, 23, 42, 0.10);
             --radius: 24px;
         }
 
-        html, body, [class*="css"] {
-            font-family: 'Inter', sans-serif !important;
-        }
+        html, body, [class*="css"] { font-family: 'Inter', sans-serif !important; }
 
         .stApp {
             background:
-                radial-gradient(circle at 8% 10%, rgba(37,99,235,0.08), transparent 26%),
-                radial-gradient(circle at 92% 6%, rgba(16,185,129,0.08), transparent 28%),
+                radial-gradient(circle at 8% 8%, rgba(37,99,235,0.08), transparent 28%),
+                radial-gradient(circle at 94% 8%, rgba(16,185,129,0.08), transparent 28%),
+                radial-gradient(circle at 50% 100%, rgba(124,58,237,0.06), transparent 30%),
                 linear-gradient(180deg, #F8FAFC 0%, #F2F6FB 100%) !important;
             color: var(--ink);
         }
 
-        header, footer, .stDeployButton, #MainMenu {
-            display: none !important;
-        }
+        header, footer, .stDeployButton, #MainMenu { display: none !important; }
 
         .block-container {
-            max-width: 1120px;
+            max-width: 1180px;
             padding-top: 34px !important;
             padding-bottom: 46px !important;
         }
 
-        h1, h2, h3, h4, p, span, label, div {
-            color: var(--ink);
-        }
-
+        h1, h2, h3, h4, p, span, label, div { color: var(--ink); }
         p { line-height: 1.55; }
+
+        @keyframes orbFloat {
+            0%, 100% { transform: translateY(0) rotate(0deg) scale(1); }
+            50% { transform: translateY(-7px) rotate(4deg) scale(1.04); }
+        }
 
         .wf-topbar {
             display: flex;
@@ -121,15 +121,29 @@ def inject_css() -> None:
         }
 
         .wf-logo {
-            width: 40px;
-            height: 40px;
-            border-radius: 14px;
-            display: grid;
-            place-items: center;
-            color: #FFFFFF !important;
-            font-weight: 900;
-            background: linear-gradient(135deg, #2563EB 0%, #7C3AED 52%, #10B981 100%);
-            box-shadow: 0 12px 26px rgba(37,99,235,0.20);
+            width: 42px;
+            height: 42px;
+            border-radius: 999px;
+            position: relative;
+            overflow: hidden;
+            background:
+                radial-gradient(circle at 28% 22%, rgba(255,255,255,0.98) 0 8%, transparent 22%),
+                linear-gradient(135deg, #93C5FD 0%, #A78BFA 48%, #34D399 100%);
+            box-shadow: 0 14px 30px rgba(37,99,235,0.20);
+            animation: orbFloat 5.5s ease-in-out infinite;
+        }
+
+        .wf-logo::after {
+            content: "";
+            position: absolute;
+            width: 54px;
+            height: 22px;
+            left: -6px;
+            top: 15px;
+            border-radius: 999px;
+            border: 1px solid rgba(255,255,255,0.62);
+            transform: rotate(-28deg);
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.34), transparent);
         }
 
         .wf-version {
@@ -153,19 +167,19 @@ def inject_css() -> None:
             box-shadow: 0 0 0 5px rgba(16,185,129,0.12);
         }
 
-        .wf-title-card {
+        .wf-hero {
             background: rgba(255,255,255,0.92);
             border: 1px solid var(--line);
-            border-radius: 28px;
-            padding: 26px;
+            border-radius: 30px;
+            padding: 28px;
             box-shadow: var(--shadow);
-            margin-bottom: 16px;
+            margin-bottom: 18px;
         }
 
-        .wf-title-card h1 {
-            font-size: clamp(30px, 4vw, 48px);
+        .wf-hero h1 {
+            font-size: clamp(32px, 4.4vw, 54px);
             line-height: 1.02;
-            letter-spacing: -2px;
+            letter-spacing: -2.3px;
             margin: 0 0 10px 0;
             font-weight: 900;
         }
@@ -177,12 +191,119 @@ def inject_css() -> None:
             color: transparent !important;
         }
 
-        .wf-title-card p {
-            max-width: 780px;
+        .wf-hero p {
+            max-width: 820px;
             margin: 0;
             color: var(--muted) !important;
             font-size: 16px;
             font-weight: 550;
+        }
+
+        .wf-section-title {
+            display: flex;
+            justify-content: space-between;
+            align-items: end;
+            gap: 16px;
+            margin: 22px 0 12px;
+        }
+
+        .wf-section-title h2 {
+            margin: 0;
+            font-size: 26px;
+            letter-spacing: -1px;
+            font-weight: 900;
+        }
+
+        .wf-section-title p {
+            margin: 4px 0 0;
+            color: var(--muted) !important;
+            font-size: 14px;
+        }
+
+        .wf-workspace-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 12px;
+            margin-bottom: 16px;
+        }
+
+        .wf-workspace-card {
+            min-height: 218px;
+            background: #FFFFFF;
+            border: 1px solid var(--line);
+            border-radius: 24px;
+            padding: 18px;
+            box-shadow: 0 12px 32px rgba(15,23,42,0.05);
+            transition: transform .22s ease, box-shadow .22s ease, border-color .22s ease;
+        }
+
+        .wf-workspace-card:hover {
+            transform: translateY(-4px);
+            box-shadow: var(--shadow-hover);
+        }
+
+        .wf-workspace-card.active-pdf { background: linear-gradient(145deg, #FFFFFF, var(--blue-soft)); border-color: rgba(37,99,235,0.36); }
+        .wf-workspace-card.active-video { background: linear-gradient(145deg, #FFFFFF, var(--pink-soft)); border-color: rgba(219,39,119,0.30); }
+        .wf-workspace-card.active-image { background: linear-gradient(145deg, #FFFFFF, var(--green-soft)); border-color: rgba(16,185,129,0.30); }
+        .wf-workspace-card.active-office { background: linear-gradient(145deg, #FFFFFF, var(--purple-soft)); border-color: rgba(124,58,237,0.30); }
+
+        .wf-orb {
+            width: 62px;
+            height: 62px;
+            border-radius: 999px;
+            position: relative;
+            overflow: hidden;
+            margin-bottom: 14px;
+            background:
+                radial-gradient(circle at 28% 22%, rgba(255,255,255,0.98) 0 8%, transparent 22%),
+                radial-gradient(circle at 72% 30%, rgba(255,255,255,0.50) 0 7%, transparent 25%),
+                linear-gradient(135deg, #93C5FD 0%, #7C3AED 48%, #22D3EE 100%);
+            box-shadow: inset 10px 11px 20px rgba(255,255,255,0.42), inset -14px -16px 24px rgba(30,64,175,0.16), 0 18px 36px rgba(37,99,235,0.18);
+            animation: orbFloat 6s ease-in-out infinite;
+        }
+
+        .wf-orb::after {
+            content: "";
+            position: absolute;
+            width: 78px;
+            height: 30px;
+            left: -8px;
+            top: 22px;
+            border-radius: 999px;
+            border: 1px solid rgba(255,255,255,0.54);
+            transform: rotate(-30deg);
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.32), transparent);
+        }
+
+        .wf-orb.video { background: radial-gradient(circle at 28% 22%, rgba(255,255,255,0.98) 0 8%, transparent 22%), linear-gradient(135deg, #FDBA74 0%, #F472B6 44%, #7C3AED 100%); box-shadow: 0 18px 36px rgba(219,39,119,0.18); animation-delay: -1s; }
+        .wf-orb.image { background: radial-gradient(circle at 28% 22%, rgba(255,255,255,0.98) 0 8%, transparent 22%), linear-gradient(135deg, #A7F3D0 0%, #34D399 46%, #2563EB 100%); box-shadow: 0 18px 36px rgba(16,185,129,0.18); animation-delay: -2s; }
+        .wf-orb.office { background: radial-gradient(circle at 28% 22%, rgba(255,255,255,0.98) 0 8%, transparent 22%), linear-gradient(135deg, #DDD6FE 0%, #A78BFA 48%, #F472B6 100%); box-shadow: 0 18px 36px rgba(124,58,237,0.18); animation-delay: -3s; }
+
+        .wf-workspace-card h3 {
+            margin: 0 0 7px;
+            font-size: 18px;
+            letter-spacing: -0.5px;
+            font-weight: 900;
+        }
+
+        .wf-workspace-card p {
+            color: var(--muted) !important;
+            font-size: 13px;
+            margin: 0 0 12px;
+            font-weight: 550;
+        }
+
+        .wf-tags { display: flex; gap: 6px; flex-wrap: wrap; }
+
+        .wf-tag {
+            display: inline-flex;
+            padding: 6px 8px;
+            border-radius: 999px;
+            background: rgba(255,255,255,0.72);
+            border: 1px solid rgba(226,232,240,0.80);
+            color: #475569 !important;
+            font-size: 11px;
+            font-weight: 800;
         }
 
         .wf-tool-strip {
@@ -198,40 +319,16 @@ def inject_css() -> None:
             border-radius: 20px;
             padding: 14px;
             box-shadow: 0 10px 28px rgba(15,23,42,0.04);
-            min-height: 86px;
+            min-height: 78px;
         }
 
-        .wf-tool-box.active-blue {
-            border-color: rgba(37,99,235,0.34);
-            background: linear-gradient(145deg, #FFFFFF, var(--blue-soft));
-        }
+        .wf-tool-box.active-blue { background: linear-gradient(145deg, #FFFFFF, var(--blue-soft)); border-color: rgba(37,99,235,0.34); }
+        .wf-tool-box.active-purple { background: linear-gradient(145deg, #FFFFFF, var(--purple-soft)); border-color: rgba(124,58,237,0.34); }
+        .wf-tool-box.active-green { background: linear-gradient(145deg, #FFFFFF, var(--green-soft)); border-color: rgba(16,185,129,0.34); }
+        .wf-tool-box.active-orange { background: linear-gradient(145deg, #FFFFFF, var(--orange-soft)); border-color: rgba(249,115,22,0.34); }
 
-        .wf-tool-box.active-purple {
-            border-color: rgba(124,58,237,0.34);
-            background: linear-gradient(145deg, #FFFFFF, var(--purple-soft));
-        }
-
-        .wf-tool-box.active-green {
-            border-color: rgba(16,185,129,0.34);
-            background: linear-gradient(145deg, #FFFFFF, var(--green-soft));
-        }
-
-        .wf-tool-box.active-orange {
-            border-color: rgba(249,115,22,0.34);
-            background: linear-gradient(145deg, #FFFFFF, var(--orange-soft));
-        }
-
-        .wf-tool-box b {
-            display: block;
-            font-size: 14px;
-            margin-bottom: 4px;
-        }
-
-        .wf-tool-box span {
-            color: var(--muted) !important;
-            font-size: 12px;
-            font-weight: 650;
-        }
+        .wf-tool-box b { display: block; font-size: 14px; margin-bottom: 4px; }
+        .wf-tool-box span { color: var(--muted) !important; font-size: 12px; font-weight: 650; }
 
         .wf-card {
             background: rgba(255,255,255,0.94);
@@ -242,224 +339,61 @@ def inject_css() -> None:
             margin-bottom: 16px;
         }
 
-        .wf-card h2, .wf-card h3 {
-            margin-top: 0;
-            letter-spacing: -0.7px;
+        .wf-card h2, .wf-card h3 { margin-top: 0; letter-spacing: -0.7px; }
+        .wf-card-subtitle { color: var(--muted) !important; margin-top: -8px; margin-bottom: 16px; font-size: 14px; font-weight: 550; }
+
+        .wf-info-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-top: 14px; }
+        .wf-info-box { background: #F8FAFC; border: 1px solid var(--line); border-radius: 16px; padding: 13px; }
+        .wf-info-box b { display: block; font-size: 18px; }
+        .wf-info-box span { color: var(--muted) !important; font-size: 12px; font-weight: 700; }
+
+        .wf-file-list { display: grid; gap: 8px; margin-top: 12px; }
+        .wf-file-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 13px; border-radius: 15px; background: #F8FAFC; border: 1px solid var(--line); font-size: 13px; font-weight: 700; }
+        .wf-file-row small { color: var(--muted) !important; font-weight: 700; }
+
+        .wf-preview-empty { min-height: 280px; border-radius: 20px; background: linear-gradient(145deg, #FFFFFF, #F8FAFC); border: 1px dashed #CBD5E1; display: grid; place-items: center; text-align: center; padding: 24px; }
+        .wf-preview-empty h3 { margin-bottom: 6px; }
+        .wf-preview-empty p { color: var(--muted) !important; margin: 0; max-width: 360px; }
+
+        .wf-test-card { border-radius: 20px; padding: 18px; background: #F8FAFC; border: 1px solid var(--line); }
+        .wf-test-card ul { margin-bottom: 0; color: #334155; }
+        .wf-footer { text-align: center; color: #94A3B8 !important; font-size: 12px; font-weight: 700; margin-top: 16px; }
+
+        .stFileUploader section { border-radius: 20px !important; border: 1.5px dashed #CBD5E1 !important; background: #FFFFFF !important; padding: 26px !important; }
+        .stFileUploader section:hover { border-color: #2563EB !important; background: #F8FAFC !important; }
+
+        .stTextInput input, .stNumberInput input, .stSelectbox [data-baseweb="select"], .stSelectbox [data-baseweb="select"] > div, .stTextArea textarea {
+            min-height: 48px !important; border-radius: 14px !important; border-color: #CBD5E1 !important; background: #FFFFFF !important; color: #0F172A !important; font-weight: 700 !important;
         }
 
-        .wf-card-subtitle {
-            color: var(--muted) !important;
-            margin-top: -8px;
-            margin-bottom: 16px;
-            font-size: 14px;
-            font-weight: 550;
-        }
-
-        .wf-info-grid {
-            display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            gap: 10px;
-            margin-top: 14px;
-        }
-
-        .wf-info-box {
-            background: #F8FAFC;
-            border: 1px solid var(--line);
-            border-radius: 16px;
-            padding: 13px;
-        }
-
-        .wf-info-box b {
-            display: block;
-            font-size: 18px;
-        }
-
-        .wf-info-box span {
-            color: var(--muted) !important;
-            font-size: 12px;
-            font-weight: 700;
-        }
-
-        .wf-file-list {
-            display: grid;
-            gap: 8px;
-            margin-top: 12px;
-        }
-
-        .wf-file-row {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            gap: 12px;
-            padding: 12px 13px;
-            border-radius: 15px;
-            background: #F8FAFC;
-            border: 1px solid var(--line);
-            font-size: 13px;
-            font-weight: 700;
-        }
-
-        .wf-file-row small {
-            color: var(--muted) !important;
-            font-weight: 700;
-        }
-
-        .wf-preview-empty {
-            min-height: 280px;
-            border-radius: 20px;
-            background: linear-gradient(145deg, #FFFFFF, #F8FAFC);
-            border: 1px dashed #CBD5E1;
-            display: grid;
-            place-items: center;
-            text-align: center;
-            padding: 24px;
-        }
-
-        .wf-preview-empty h3 {
-            margin-bottom: 6px;
-        }
-
-        .wf-preview-empty p {
-            color: var(--muted) !important;
-            margin: 0;
-            max-width: 340px;
-        }
-
-        .wf-test-card {
-            border-radius: 20px;
-            padding: 18px;
-            background: #F8FAFC;
-            border: 1px solid var(--line);
-        }
-
-        .wf-test-card ul {
-            margin-bottom: 0;
-            color: #334155;
-        }
-
-        .wf-footer {
-            text-align: center;
-            color: #94A3B8 !important;
-            font-size: 12px;
-            font-weight: 700;
-            margin-top: 16px;
-        }
-
-        .stFileUploader section {
-            border-radius: 20px !important;
-            border: 1.5px dashed #CBD5E1 !important;
-            background: #FFFFFF !important;
-            padding: 26px !important;
-        }
-
-        .stFileUploader section:hover {
-            border-color: #2563EB !important;
-            background: #F8FAFC !important;
-        }
-
-        .stTextInput input,
-        .stNumberInput input,
-        .stSelectbox [data-baseweb="select"],
-        .stSelectbox [data-baseweb="select"] > div,
-        .stTextArea textarea {
-            min-height: 48px !important;
-            border-radius: 14px !important;
-            border-color: #CBD5E1 !important;
-            background: #FFFFFF !important;
-            color: #0F172A !important;
-            font-weight: 700 !important;
-        }
-
-        .stFileUploader button,
-        .stFileUploader [data-testid="baseButton-secondary"],
-        .stFileUploader [data-testid="stBaseButton-secondary"] {
-            border-radius: 14px !important;
-            min-height: 44px !important;
-            border: 1px solid rgba(37,99,235,0.24) !important;
-            background: linear-gradient(135deg, #EFF6FF 0%, #F5F3FF 100%) !important;
-            color: #1D4ED8 !important;
-            font-weight: 850 !important;
-            box-shadow: 0 8px 20px rgba(37,99,235,0.10) !important;
-        }
-
-        .stFileUploader button:hover,
-        .stFileUploader [data-testid="baseButton-secondary"]:hover,
-        .stFileUploader [data-testid="stBaseButton-secondary"]:hover {
-            border-color: rgba(37,99,235,0.40) !important;
-            background: linear-gradient(135deg, #DBEAFE 0%, #EDE9FE 100%) !important;
-            color: #1E40AF !important;
+        .stFileUploader button, .stFileUploader [data-testid="baseButton-secondary"], .stFileUploader [data-testid="stBaseButton-secondary"] {
+            border-radius: 14px !important; min-height: 44px !important; border: 1px solid rgba(37,99,235,0.24) !important; background: linear-gradient(135deg, #EFF6FF 0%, #F5F3FF 100%) !important; color: #1D4ED8 !important; font-weight: 850 !important; box-shadow: 0 8px 20px rgba(37,99,235,0.10) !important;
         }
 
         .stRadio > label { display: none !important; }
-
-        .stRadio div[role="radiogroup"] {
-            display: grid !important;
-            grid-template-columns: repeat(4, 1fr) !important;
-            gap: 10px !important;
-            margin-bottom: 16px !important;
-        }
-
-        .stRadio div[role="radiogroup"] label {
-            background: #FFFFFF !important;
-            border: 1px solid #E2E8F0 !important;
-            border-radius: 16px !important;
-            padding: 12px 13px !important;
-            box-shadow: 0 8px 22px rgba(15,23,42,0.04) !important;
-        }
-
-        .stRadio div[role="radiogroup"] label:has(input:checked) {
-            background: linear-gradient(135deg, #EFF6FF 0%, #F5F3FF 100%) !important;
-            border-color: rgba(37,99,235,0.36) !important;
-            box-shadow: 0 12px 30px rgba(37,99,235,0.10) !important;
-        }
-
-        .stRadio div[role="radiogroup"] label p {
-            color: #0F172A !important;
-            font-weight: 850 !important;
-            font-size: 13px !important;
-        }
-
+        .stRadio div[role="radiogroup"] { display: grid !important; grid-template-columns: repeat(4, 1fr) !important; gap: 10px !important; margin-bottom: 16px !important; }
+        .stRadio div[role="radiogroup"] label { background: #FFFFFF !important; border: 1px solid #E2E8F0 !important; border-radius: 16px !important; padding: 12px 13px !important; box-shadow: 0 8px 22px rgba(15,23,42,0.04) !important; }
+        .stRadio div[role="radiogroup"] label:has(input:checked) { background: linear-gradient(135deg, #EFF6FF 0%, #F5F3FF 100%) !important; border-color: rgba(37,99,235,0.36) !important; box-shadow: 0 12px 30px rgba(37,99,235,0.10) !important; }
+        .stRadio div[role="radiogroup"] label p { color: #0F172A !important; font-weight: 850 !important; font-size: 13px !important; }
         .stRadio input { accent-color: #2563EB !important; }
 
-        .stButton > button,
-        .stDownloadButton > button {
-            border-radius: 14px !important;
-            min-height: 50px !important;
-            border: 1px solid rgba(37,99,235,0.22) !important;
-            background: linear-gradient(135deg, #EFF6FF 0%, #F5F3FF 100%) !important;
-            color: #1D4ED8 !important;
-            font-weight: 850 !important;
-            box-shadow: 0 10px 24px rgba(37,99,235,0.10) !important;
-            transition: transform .2s ease, box-shadow .2s ease, border-color .2s ease !important;
+        .stButton > button, .stDownloadButton > button {
+            border-radius: 14px !important; min-height: 50px !important; border: 1px solid rgba(37,99,235,0.22) !important; background: linear-gradient(135deg, #EFF6FF 0%, #F5F3FF 100%) !important; color: #1D4ED8 !important; font-weight: 850 !important; box-shadow: 0 10px 24px rgba(37,99,235,0.10) !important; transition: transform .2s ease, box-shadow .2s ease, border-color .2s ease !important;
         }
-
-        .stButton > button:hover,
-        .stDownloadButton > button:hover {
-            transform: translateY(-1px);
-            border-color: rgba(37,99,235,0.38) !important;
-            box-shadow: 0 14px 34px rgba(37,99,235,0.16) !important;
-        }
-
-        .stButton > button:disabled {
-            background: #F1F5F9 !important;
-            color: #94A3B8 !important;
-            box-shadow: none !important;
-            border-color: #E2E8F0 !important;
-        }
+        .stButton > button:hover, .stDownloadButton > button:hover { transform: translateY(-1px); border-color: rgba(37,99,235,0.38) !important; box-shadow: 0 14px 34px rgba(37,99,235,0.16) !important; }
+        .stButton > button:disabled { background: #F1F5F9 !important; color: #94A3B8 !important; box-shadow: none !important; border-color: #E2E8F0 !important; }
 
         .stAlert { border-radius: 16px !important; }
+        [data-testid="stExpander"] { border: 1px solid var(--line) !important; border-radius: 18px !important; background: #FFFFFF !important; box-shadow: 0 8px 24px rgba(15,23,42,0.04) !important; }
 
-        [data-testid="stExpander"] {
-            border: 1px solid var(--line) !important;
-            border-radius: 18px !important;
-            background: #FFFFFF !important;
-            box-shadow: 0 8px 24px rgba(15,23,42,0.04) !important;
-        }
-
-        @media (max-width: 900px) {
-            .wf-topbar { align-items: flex-start; flex-direction: column; }
-            .wf-tool-strip { grid-template-columns: 1fr 1fr; }
+        @media (max-width: 1000px) {
+            .wf-workspace-grid, .wf-tool-strip { grid-template-columns: 1fr 1fr; }
             .stRadio div[role="radiogroup"] { grid-template-columns: 1fr 1fr !important; }
+        }
+        @media (max-width: 700px) {
+            .wf-topbar, .wf-section-title { align-items: flex-start; flex-direction: column; }
+            .wf-workspace-grid, .wf-tool-strip { grid-template-columns: 1fr; }
+            .stRadio div[role="radiogroup"] { grid-template-columns: 1fr !important; }
             .wf-info-grid { grid-template-columns: 1fr; }
         }
         </style>
@@ -484,25 +418,20 @@ def install_missing_packages(packages: List[str]) -> Tuple[bool, str]:
 def render_missing_package_box(title: str, packages: List[str]) -> None:
     st.markdown('<div class="wf-card">', unsafe_allow_html=True)
     st.markdown(f"<h2>{title}</h2>", unsafe_allow_html=True)
-    st.warning("Für dieses Tool fehlen noch Python-Pakete. Du musst dafür nicht ins Terminal — Wertfile kann versuchen, sie automatisch in derselben Umgebung zu installieren.")
-    st.code(f"Installiert wird: {' '.join(packages)}")
+    st.warning("Für dieses Tool fehlen noch Python-Pakete. Auf Streamlit Cloud bitte requirements.txt prüfen.")
+    st.code("\n".join(packages))
     if st.button("Fehlende Pakete automatisch installieren", use_container_width=True):
-        with st.spinner("Pakete werden installiert. Das kann kurz dauern..."):
+        with st.spinner("Pakete werden installiert..."):
             success, output = install_missing_packages(packages)
             if success:
-                st.success("Installation abgeschlossen. Bitte die App einmal stoppen und neu starten.")
-                st.code("streamlit run app.py")
+                st.success("Installation abgeschlossen. Bitte die App einmal neu starten.")
             else:
-                st.error("Automatische Installation hat nicht geklappt. Hier ist die Fehlermeldung:")
+                st.error("Automatische Installation hat nicht geklappt.")
                 st.text_area("Fehlerdetails", output, height=220)
     st.markdown('</div>', unsafe_allow_html=True)
 
 
-# ---------- Helpers ----------
-def mb(size_bytes: int) -> float:
-    return size_bytes / (1024 * 1024)
-
-
+# ---------- Upload Cache ----------
 class CachedUpload(io.BytesIO):
     def __init__(self, data: bytes, name: str, file_type: str = "application/pdf"):
         super().__init__(data)
@@ -512,27 +441,23 @@ class CachedUpload(io.BytesIO):
 
 
 def cache_files(cache_key: str, uploaded_files) -> None:
-    if not uploaded_files:
+    if uploaded_files is None:
         return
-
     files = uploaded_files if isinstance(uploaded_files, list) else [uploaded_files]
+    if len(files) == 0:
+        return
     cached = []
     for file in files:
         file.seek(0)
         data = file.read()
-        cached.append({
-            "name": file.name,
-            "type": getattr(file, "type", "application/octet-stream"),
-            "data": data,
-        })
+        cached.append({"name": file.name, "type": getattr(file, "type", "application/octet-stream"), "data": data, "size": len(data)})
         file.seek(0)
-
     st.session_state[cache_key] = cached
 
 
 def get_cached_files(cache_key: str) -> List[CachedUpload]:
     cached = st.session_state.get(cache_key, [])
-    return [CachedUpload(item["data"], item["name"], item.get("type", "application/pdf")) for item in cached]
+    return [CachedUpload(item["data"], item["name"], item.get("type", "application/pdf")) for item in cached if item.get("data")]
 
 
 def clear_cached_files(cache_key: str) -> None:
@@ -540,9 +465,30 @@ def clear_cached_files(cache_key: str) -> None:
         del st.session_state[cache_key]
 
 
+def render_cached_file_notice(cache_key: str, label: str) -> None:
+    files = get_cached_files(cache_key)
+    if not files:
+        return
+    total = sum(file.size for file in files) / (1024 * 1024)
+    if len(files) == 1:
+        st.success(f"Gemerkte Datei: {files[0].name} ({total:.2f} MB)")
+    else:
+        st.success(f"{len(files)} gemerkte Dateien für {label} ({total:.2f} MB)")
+        with st.expander("Gemerkte Dateien anzeigen"):
+            for file in files:
+                st.write(f"• {file.name} ({file.size / (1024 * 1024):.2f} MB)")
+    if st.button(f"Gemerkte Dateien für {label} entfernen", use_container_width=True, key=f"clear_{cache_key}"):
+        clear_cached_files(cache_key)
+        st.rerun()
+
+
+# ---------- Helpers ----------
+def mb(size_bytes: int) -> float:
+    return size_bytes / (1024 * 1024)
+
+
 def validate_image_files(uploaded_files) -> Tuple[List[str], List[str]]:
-    warnings = []
-    errors = []
+    warnings, errors = [], []
     if not uploaded_files:
         return warnings, errors
     if len(uploaded_files) > MAX_FILES:
@@ -553,7 +499,7 @@ def validate_image_files(uploaded_files) -> Tuple[List[str], List[str]]:
     for file in uploaded_files:
         file_mb = mb(file.size)
         if file_mb > MAX_SINGLE_MB:
-            errors.append(f"{file.name} ist {file_mb:.1f} MB groß. Pro Datei sind maximal {MAX_SINGLE_MB} MB empfohlen/erlaubt.")
+            errors.append(f"{file.name} ist {file_mb:.1f} MB groß. Pro Datei sind maximal {MAX_SINGLE_MB} MB erlaubt.")
         ext = file.name.split(".")[-1].lower() if "." in file.name else ""
         if ext not in SUPPORTED_IMAGE_TYPES:
             errors.append(f"{file.name} hat ein nicht unterstütztes Format.")
@@ -566,9 +512,8 @@ def validate_pdf_file(uploaded_file) -> List[str]:
     errors = []
     if not uploaded_file:
         return errors
-    file_mb = mb(uploaded_file.size)
-    if file_mb > MAX_TOTAL_MB:
-        errors.append(f"Die PDF ist {file_mb:.1f} MB groß. Erlaubt sind maximal {MAX_TOTAL_MB} MB.")
+    if mb(uploaded_file.size) > MAX_TOTAL_MB:
+        errors.append(f"Die PDF ist {mb(uploaded_file.size):.1f} MB groß. Erlaubt sind maximal {MAX_TOTAL_MB} MB.")
     ext = uploaded_file.name.split(".")[-1].lower() if "." in uploaded_file.name else ""
     if ext != "pdf":
         errors.append("Bitte eine PDF-Datei hochladen.")
@@ -607,21 +552,13 @@ def open_image_safely(file) -> Image.Image:
 def fit_to_page(image: Image.Image, page_format: str, margin: int, background: str = "white") -> Image.Image:
     if page_format == "Originalgröße":
         return image
-    page_sizes = {
-        "A4 Hochformat": (1240, 1754),
-        "A4 Querformat": (1754, 1240),
-        "Letter Hochformat": (1275, 1650),
-        "Letter Querformat": (1650, 1275),
-    }
+    page_sizes = {"A4 Hochformat": (1240, 1754), "A4 Querformat": (1754, 1240), "Letter Hochformat": (1275, 1650), "Letter Querformat": (1650, 1275)}
     canvas_size = page_sizes.get(page_format, page_sizes["A4 Hochformat"])
     canvas = Image.new("RGB", canvas_size, background)
-    max_w = max(100, canvas_size[0] - (margin * 2))
-    max_h = max(100, canvas_size[1] - (margin * 2))
+    max_w, max_h = max(100, canvas_size[0] - margin * 2), max(100, canvas_size[1] - margin * 2)
     img = image.copy()
     img.thumbnail((max_w, max_h), Image.Resampling.LANCZOS)
-    x = (canvas_size[0] - img.width) // 2
-    y = (canvas_size[1] - img.height) // 2
-    canvas.paste(img, (x, y))
+    canvas.paste(img, ((canvas_size[0] - img.width) // 2, (canvas_size[1] - img.height) // 2))
     return canvas
 
 
@@ -631,13 +568,11 @@ def create_pdf(uploaded_files, page_format: str, margin_size: str, sort_mode: st
         files = sorted(files, key=lambda f: f.name.lower())
     elif sort_mode == "Dateiname Z–A":
         files = sorted(files, key=lambda f: f.name.lower(), reverse=True)
-    margin_map = {"Keine": 0, "Klein": 40, "Normal": 80, "Groß": 130}
-    margin = margin_map.get(margin_size, 80)
+    margin = {"Keine": 0, "Klein": 40, "Normal": 80, "Groß": 130}.get(margin_size, 80)
     images = []
     for file in files:
         file.seek(0)
-        image = open_image_safely(file)
-        images.append(fit_to_page(image, page_format, margin))
+        images.append(fit_to_page(open_image_safely(file), page_format, margin))
     if not images:
         raise ValueError("Keine gültigen Bilder vorhanden.")
     buffer = io.BytesIO()
@@ -648,9 +583,8 @@ def create_pdf(uploaded_files, page_format: str, margin_size: str, sort_mode: st
 
 def create_preview_image(uploaded_file, page_format: str, margin_size: str) -> Image.Image:
     uploaded_file.seek(0)
-    image = open_image_safely(uploaded_file)
-    margin_map = {"Keine": 0, "Klein": 40, "Normal": 80, "Groß": 130}
-    return fit_to_page(image, page_format, margin_map.get(margin_size, 80))
+    margin = {"Keine": 0, "Klein": 40, "Normal": 80, "Groß": 130}.get(margin_size, 80)
+    return fit_to_page(open_image_safely(uploaded_file), page_format, margin)
 
 
 def create_uploaded_zip(uploaded_files) -> bytes:
@@ -668,14 +602,13 @@ def extract_pdf_text(pdf_file) -> Tuple[List[dict], int, int]:
         raise ImportError("PyMuPDF fehlt. Bitte installiere es mit: pip install pymupdf")
     pdf_file.seek(0)
     pdf_bytes = pdf_file.read()
-    pages = []
-    total_chars = 0
+    pages, total_chars = [], 0
     with fitz.open(stream=pdf_bytes, filetype="pdf") as doc:
-        page_count = doc.page_count
         for idx, page in enumerate(doc, start=1):
             text = page.get_text("text").strip()
             total_chars += len(text)
             pages.append({"page": idx, "text": text})
+        page_count = doc.page_count
     return pages, page_count, total_chars
 
 
@@ -686,9 +619,8 @@ def create_word_from_pdf_text(pdf_file, output_style: str, include_page_numbers:
     if total_chars < 20:
         raise ValueError("In dieser PDF wurde kaum Text gefunden. Wahrscheinlich ist es ein Scan/Bild-PDF. Dafür braucht Wertfile später OCR.")
     doc = Document()
-    styles = doc.styles
-    styles["Normal"].font.name = "Arial"
-    styles["Normal"].font.size = Pt(10.5)
+    doc.styles["Normal"].font.name = "Arial"
+    doc.styles["Normal"].font.size = Pt(10.5)
     doc.add_heading("Wertfile PDF to Word Export", level=1)
     intro = doc.add_paragraph()
     intro.add_run(f"Quelle: {pdf_file.name}\n").bold = True
@@ -702,16 +634,13 @@ def create_word_from_pdf_text(pdf_file, output_style: str, include_page_numbers:
         if include_page_numbers:
             doc.add_heading(f"Seite {page['page']}", level=2)
         if output_style == "Absätze erhalten":
-            paragraphs = [p.strip() for p in text.split("\n\n") if p.strip()]
-            if not paragraphs:
-                paragraphs = [line.strip() for line in text.split("\n") if line.strip()]
+            paragraphs = [p.strip() for p in text.split("\n\n") if p.strip()] or [line.strip() for line in text.split("\n") if line.strip()]
             for paragraph in paragraphs:
                 doc.add_paragraph(paragraph)
         else:
             for line in text.split("\n"):
-                line = line.strip()
-                if line:
-                    doc.add_paragraph(line)
+                if line.strip():
+                    doc.add_paragraph(line.strip())
         doc.add_paragraph("")
     buffer = io.BytesIO()
     doc.save(buffer)
@@ -723,29 +652,24 @@ def get_pdf_page_count(pdf_file) -> int:
     if fitz is None:
         raise ImportError("PyMuPDF fehlt. Bitte installiere es mit: pip install pymupdf")
     pdf_file.seek(0)
-    pdf_bytes = pdf_file.read()
-    with fitz.open(stream=pdf_bytes, filetype="pdf") as doc:
+    with fitz.open(stream=pdf_file.read(), filetype="pdf") as doc:
         return doc.page_count
 
 
 def merge_pdfs(uploaded_files, sort_mode: str) -> Tuple[bytes, int]:
     if fitz is None:
         raise ImportError("PyMuPDF fehlt. Bitte installiere es mit: pip install pymupdf")
-
     files = list(uploaded_files)
     if sort_mode == "Dateiname A–Z":
         files = sorted(files, key=lambda f: f.name.lower())
     elif sort_mode == "Dateiname Z–A":
         files = sorted(files, key=lambda f: f.name.lower(), reverse=True)
-
     output_doc = fitz.open()
     total_pages = 0
-
     for file in files:
         file.seek(0)
-        pdf_bytes = file.read()
         try:
-            with fitz.open(stream=pdf_bytes, filetype="pdf") as input_doc:
+            with fitz.open(stream=file.read(), filetype="pdf") as input_doc:
                 if input_doc.needs_pass:
                     raise ValueError(f"{file.name} ist verschlüsselt und kann nicht verarbeitet werden.")
                 output_doc.insert_pdf(input_doc)
@@ -754,11 +678,9 @@ def merge_pdfs(uploaded_files, sort_mode: str) -> Tuple[bytes, int]:
             raise
         except Exception as exc:
             raise ValueError(f"{file.name} konnte nicht verarbeitet werden: {exc}")
-
     if total_pages == 0:
         output_doc.close()
         raise ValueError("Es wurden keine PDF-Seiten gefunden.")
-
     merged_bytes = output_doc.tobytes(garbage=4, deflate=True)
     output_doc.close()
     return merged_bytes, total_pages
@@ -769,12 +691,10 @@ def parse_page_ranges(range_text: str, max_pages: int) -> List[int]:
     if not cleaned:
         raise ValueError("Bitte einen Seitenbereich eingeben, z. B. 1-3 oder 1,3,5.")
     selected = []
-    parts = cleaned.split(",")
-    for part in parts:
+    for part in cleaned.split(","):
         if "-" in part:
             start_str, end_str = part.split("-", 1)
-            start = int(start_str)
-            end = int(end_str)
+            start, end = int(start_str), int(end_str)
             if start > end:
                 raise ValueError(f"Ungültiger Bereich: {part}")
             selected.extend(range(start, end + 1))
@@ -792,26 +712,19 @@ def parse_page_ranges(range_text: str, max_pages: int) -> List[int]:
 def split_pdf(pdf_file, range_text: str) -> Tuple[bytes, int, int]:
     if fitz is None:
         raise ImportError("PyMuPDF fehlt. Bitte installiere es mit: pip install pymupdf")
-
     pdf_file.seek(0)
-    pdf_bytes = pdf_file.read()
-
     try:
-        input_doc = fitz.open(stream=pdf_bytes, filetype="pdf")
+        input_doc = fitz.open(stream=pdf_file.read(), filetype="pdf")
     except Exception as exc:
         raise ValueError(f"PDF konnte nicht geöffnet werden: {exc}")
-
     if input_doc.needs_pass:
         input_doc.close()
         raise ValueError("Diese PDF ist verschlüsselt und kann nicht verarbeitet werden.")
-
     max_pages = input_doc.page_count
     pages = parse_page_ranges(range_text, max_pages)
-
     output_doc = fitz.open()
     for page_number in pages:
         output_doc.insert_pdf(input_doc, from_page=page_number - 1, to_page=page_number - 1)
-
     split_bytes = output_doc.tobytes(garbage=4, deflate=True)
     output_doc.close()
     input_doc.close()
@@ -820,33 +733,51 @@ def split_pdf(pdf_file, range_text: str) -> Tuple[bytes, int, int]:
 
 # ---------- UI ----------
 def render_header() -> None:
-    tool_labels = {
-        "image_to_pdf": "Bild → PDF",
-        "pdf_to_word": "PDF → Word",
-        "pdf_merge": "PDF Merge",
-        "pdf_split": "PDF Split",
-    }
-    tool_text = tool_labels.get(st.session_state.active_tool, "Bild → PDF")
+    workspace_labels = {"pdf": "PDF Workspace", "video": "Video & Audio", "image": "Image Tools", "office": "Office Convert"}
     st.markdown(
         f"""
         <div class="wf-topbar">
-            <div class="wf-brand">
-                <div class="wf-logo">W</div>
-                <div>Wertfile.</div>
-            </div>
-            <div class="wf-version"><span class="wf-dot"></span>1.2 · {tool_text}</div>
+            <div class="wf-brand"><div class="wf-logo"></div><div>Wertfile.</div></div>
+            <div class="wf-version"><span class="wf-dot"></span>1.3 · {workspace_labels.get(st.session_state.active_workspace, 'PDF Workspace')}</div>
         </div>
-        <section class="wf-title-card">
-            <h1>PDF Workspace.<br><span class="wf-gradient">Clean und zuverlässig.</span></h1>
-            <p>Konvertiere Bilder zu PDF, wandle Text-PDFs in Word um, führe PDFs zusammen oder schneide Seitenbereiche aus.</p>
+        <section class="wf-hero">
+            <h1>Ein Workspace.<br><span class="wf-gradient">Alle wichtigen Datei-Tools.</span></h1>
+            <p>Starte mit einem Bereich und nutze genau das Tool, das du brauchst: PDF, Video & Audio, Bilder oder Office-Konvertierung.</p>
         </section>
         """,
         unsafe_allow_html=True,
     )
 
 
-def render_tool_selector() -> None:
-    active = st.session_state.active_tool
+def render_workspace_selector() -> None:
+    active = st.session_state.active_workspace
+    cls = {
+        "pdf": "active-pdf" if active == "pdf" else "",
+        "video": "active-video" if active == "video" else "",
+        "image": "active-image" if active == "image" else "",
+        "office": "active-office" if active == "office" else "",
+    }
+    st.markdown(
+        f"""
+        <div class="wf-section-title"><div><h2>Was möchtest du bearbeiten?</h2><p>Vier Bereiche für schnelle Orientierung.</p></div></div>
+        <div class="wf-workspace-grid">
+            <div class="wf-workspace-card {cls['pdf']}"><div class="wf-orb"></div><h3>PDF Workspace</h3><p>Zusammenführen, teilen und konvertieren.</p><div class="wf-tags"><span class="wf-tag">Merge</span><span class="wf-tag">Split</span><span class="wf-tag">Word</span></div></div>
+            <div class="wf-workspace-card {cls['video']}"><div class="wf-orb video"></div><h3>Video & Audio</h3><p>MP3, MP4 und Komprimierung.</p><div class="wf-tags"><span class="wf-tag">MP3</span><span class="wf-tag">MP4</span><span class="wf-tag">Coming soon</span></div></div>
+            <div class="wf-workspace-card {cls['image']}"><div class="wf-orb image"></div><h3>Image Tools</h3><p>Bilder konvertieren und optimieren.</p><div class="wf-tags"><span class="wf-tag">JPG</span><span class="wf-tag">PNG</span><span class="wf-tag">WEBP</span></div></div>
+            <div class="wf-workspace-card {cls['office']}"><div class="wf-orb office"></div><h3>Office Convert</h3><p>Word, Excel und PowerPoint Workflows.</p><div class="wf-tags"><span class="wf-tag">Word</span><span class="wf-tag">Excel</span><span class="wf-tag">PDF</span></div></div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+    labels = ["PDF", "Video & Audio", "Image Tools", "Office Convert"]
+    workspace_map = {"PDF": "pdf", "Video & Audio": "video", "Image Tools": "image", "Office Convert": "office"}
+    reverse_map = {v: k for k, v in workspace_map.items()}
+    selected = st.radio("Workspace auswählen", labels, index=labels.index(reverse_map.get(active, "PDF")), horizontal=True, label_visibility="collapsed")
+    st.session_state.active_workspace = workspace_map[selected]
+
+
+def render_pdf_tool_selector() -> None:
+    active = st.session_state.active_pdf_tool
     cls = {
         "image_to_pdf": "active-blue" if active == "image_to_pdf" else "",
         "pdf_to_word": "active-purple" if active == "pdf_to_word" else "",
@@ -855,6 +786,7 @@ def render_tool_selector() -> None:
     }
     st.markdown(
         f"""
+        <div class="wf-section-title"><div><h2>PDF Tools</h2><p>Bestehende stabile Werkzeuge. PDF Compress folgt als nächstes.</p></div></div>
         <div class="wf-tool-strip">
             <div class="wf-tool-box {cls['image_to_pdf']}"><b>Bild → PDF</b><span>JPG, PNG oder WEBP als PDF.</span></div>
             <div class="wf-tool-box {cls['pdf_to_word']}"><b>PDF → Word</b><span>Text-PDFs als DOCX.</span></div>
@@ -867,8 +799,24 @@ def render_tool_selector() -> None:
     labels = ["Bild → PDF", "PDF → Word", "PDF Merge", "PDF Split"]
     tool_map = {"Bild → PDF": "image_to_pdf", "PDF → Word": "pdf_to_word", "PDF Merge": "pdf_merge", "PDF Split": "pdf_split"}
     reverse_map = {v: k for k, v in tool_map.items()}
-    selected = st.radio("Tool auswählen", labels, index=labels.index(reverse_map.get(active, "Bild → PDF")), horizontal=True, label_visibility="collapsed")
-    st.session_state.active_tool = tool_map[selected]
+    selected = st.radio("PDF Tool auswählen", labels, index=labels.index(reverse_map.get(active, "Bild → PDF")), horizontal=True, label_visibility="collapsed")
+    st.session_state.active_pdf_tool = tool_map[selected]
+
+
+def render_coming_soon_workspace(title: str, subtitle: str, tags: List[str], orb_class: str) -> None:
+    st.markdown('<div class="wf-card">', unsafe_allow_html=True)
+    st.markdown(
+        f"""
+        <div class="wf-orb {orb_class}"></div>
+        <h2>{title}</h2>
+        <p class="wf-card-subtitle">{subtitle}</p>
+        <div class="wf-tags">{''.join([f'<span class="wf-tag">{tag}</span>' for tag in tags])}</div>
+        <br>
+        <div class="wf-preview-empty"><div><h3>Coming soon</h3><p>Dieser Bereich ist als nächster Ausbau geplant. Der PDF Workspace bleibt zuerst der stabile Kern.</p></div></div>
+        """,
+        unsafe_allow_html=True,
+    )
+    st.markdown('</div>', unsafe_allow_html=True)
 
 
 def render_image_to_pdf_converter() -> None:
@@ -881,11 +829,7 @@ def render_image_to_pdf_converter() -> None:
         if uploaded_now:
             cache_files("image_to_pdf_files", uploaded_now)
         uploaded_files = get_cached_files("image_to_pdf_files")
-        if uploaded_files:
-            st.caption("Bilder bleiben beim Wechsel zwischen Tools erhalten.")
-            if st.button("Gemerkte Bilder entfernen", use_container_width=True):
-                clear_cached_files("image_to_pdf_files")
-                st.rerun()
+        render_cached_file_notice("image_to_pdf_files", "Bild → PDF")
         warnings, errors = validate_image_files(uploaded_files)
         for warning in warnings:
             st.warning(warning)
@@ -971,17 +915,13 @@ def render_pdf_to_word_converter() -> None:
             cache_files("pdf_to_word_file", uploaded_now)
         cached_word_pdfs = get_cached_files("pdf_to_word_file")
         pdf_file = cached_word_pdfs[0] if cached_word_pdfs else None
-        if pdf_file:
-            st.caption(f"Gemerkte PDF: {pdf_file.name}. Sie bleibt beim Wechsel zwischen Tools erhalten.")
-            if st.button("Gemerkte Word-PDF entfernen", use_container_width=True):
-                clear_cached_files("pdf_to_word_file")
-                st.rerun()
+        render_cached_file_notice("pdf_to_word_file", "PDF → Word")
         errors = validate_pdf_file(pdf_file)
         for error in errors:
             st.error(error)
         output_style = st.selectbox("Word-Struktur", ["Absätze erhalten", "Zeilenweise exportieren"], index=0)
         include_page_numbers = st.checkbox("Seitenüberschriften einfügen", value=True)
-        disabled = not pdf_file or bool(errors) or fitz is None or Document is None
+        disabled = not pdf_file or bool(errors)
         if disabled:
             st.button("Word-Datei erstellen", use_container_width=True, disabled=True)
         else:
@@ -1000,7 +940,7 @@ def render_pdf_to_word_converter() -> None:
         st.markdown('<div class="wf-card">', unsafe_allow_html=True)
         st.markdown("<h2>PDF-Analyse</h2>", unsafe_allow_html=True)
         st.markdown('<p class="wf-card-subtitle">Zeigt, ob Text erkannt wird.</p>', unsafe_allow_html=True)
-        if pdf_file and not errors and fitz is not None:
+        if pdf_file and not errors:
             try:
                 pages, page_count, total_chars = extract_pdf_text(pdf_file)
                 text_pages = sum(1 for page in pages if page["text"].strip())
@@ -1009,11 +949,7 @@ def render_pdf_to_word_converter() -> None:
                     st.warning("Kaum Text gefunden. Wahrscheinlich Scan-PDF. OCR folgt später.")
                 else:
                     st.success("Text gefunden. PDF eignet sich wahrscheinlich für Word-Export.")
-                first_text = ""
-                for page in pages:
-                    if page["text"].strip():
-                        first_text = page["text"].strip()[:2200]
-                        break
+                first_text = next((page["text"].strip()[:2200] for page in pages if page["text"].strip()), "")
                 if first_text:
                     st.text_area("Text-Vorschau", first_text, height=250)
             except Exception as exc:
@@ -1036,11 +972,7 @@ def render_pdf_merge_converter() -> None:
         if uploaded_now:
             cache_files("pdf_workspace_files", uploaded_now)
         pdf_files = get_cached_files("pdf_workspace_files")
-        if pdf_files:
-            st.caption("Dateien bleiben beim Wechsel zwischen PDF Merge und PDF Split erhalten.")
-            if st.button("Gemerkte PDFs entfernen", use_container_width=True):
-                clear_cached_files("pdf_workspace_files")
-                st.rerun()
+        render_cached_file_notice("pdf_workspace_files", "PDF Merge/Split")
         errors = validate_pdf_files(pdf_files, min_files=2)
         for error in errors:
             st.error(error)
@@ -1057,7 +989,7 @@ def render_pdf_merge_converter() -> None:
             for idx, file in enumerate(display_files, start=1):
                 st.markdown(f'<div class="wf-file-row"><span>{idx}. {file.name}</span><small>{mb(file.size):.2f} MB</small></div>', unsafe_allow_html=True)
             st.markdown('</div>', unsafe_allow_html=True)
-        disabled = not pdf_files or bool(errors) or fitz is None
+        disabled = not pdf_files or bool(errors)
         if disabled:
             st.button("PDFs zusammenführen", use_container_width=True, disabled=True)
         else:
@@ -1092,23 +1024,18 @@ def render_pdf_split_converter() -> None:
             cache_files("pdf_workspace_files", uploaded_now)
         cached_pdfs = get_cached_files("pdf_workspace_files")
         pdf_file = cached_pdfs[0] if cached_pdfs else None
-        if pdf_file:
-            st.caption(f"Aktive PDF: {pdf_file.name}. Dateien bleiben beim Wechsel zwischen PDF Merge und PDF Split erhalten.")
-            if st.button("Gemerkte PDF entfernen", use_container_width=True):
-                clear_cached_files("pdf_workspace_files")
-                st.rerun()
+        render_cached_file_notice("pdf_workspace_files", "PDF Merge/Split")
         errors = validate_pdf_file(pdf_file)
         for error in errors:
             st.error(error)
-        page_count = None
-        if pdf_file and not errors and fitz is not None:
+        if pdf_file and not errors:
             try:
                 page_count = get_pdf_page_count(pdf_file)
                 st.markdown(f"""<div class="wf-info-grid"><div class="wf-info-box"><b>{page_count}</b><span>Seiten</span></div><div class="wf-info-box"><b>{mb(pdf_file.size):.1f} MB</b><span>Dateigröße</span></div><div class="wf-info-box"><b>PDF</b><span>Export</span></div></div>""", unsafe_allow_html=True)
             except Exception as exc:
                 st.error(str(exc))
         range_text = st.text_input("Seitenbereich", placeholder="z. B. 1-3 oder 1,3,5")
-        disabled = not pdf_file or bool(errors) or not range_text or fitz is None
+        disabled = not pdf_file or bool(errors) or not range_text
         if disabled:
             st.button("Seiten exportieren", use_container_width=True, disabled=True)
         else:
@@ -1130,39 +1057,50 @@ def render_pdf_split_converter() -> None:
         st.markdown('</div>', unsafe_allow_html=True)
 
 
+def render_pdf_workspace() -> None:
+    render_pdf_tool_selector()
+    if st.session_state.active_pdf_tool == "image_to_pdf":
+        render_image_to_pdf_converter()
+    elif st.session_state.active_pdf_tool == "pdf_to_word":
+        render_pdf_to_word_converter()
+    elif st.session_state.active_pdf_tool == "pdf_merge":
+        render_pdf_merge_converter()
+    else:
+        render_pdf_split_converter()
+
+
 def render_test_plan() -> None:
     with st.expander("Testplan"):
         st.markdown("""
         <div class="wf-test-card">
-            <b>Bild → PDF:</b>
-            <ul><li>1 JPG hochladen → PDF erstellen → Download öffnen</li><li>3 Bilder hochladen → Reihenfolge prüfen → PDF öffnen</li></ul><br>
-            <b>PDF → Word:</b>
-            <ul><li>Text-PDF hochladen → Analyse prüfen → Word erstellen</li><li>Scan-PDF testen → OCR-Hinweis sollte erscheinen</li></ul><br>
-            <b>PDF Merge:</b>
-            <ul><li>2 PDFs hochladen → zusammenführen → Datei öffnen</li><li>Reihenfolge A–Z testen</li></ul><br>
-            <b>PDF Split:</b>
-            <ul><li>PDF hochladen → 1-2 exportieren</li><li>PDF hochladen → 1,3,5 exportieren</li><li>Ungültige Seite testen → Fehlermeldung prüfen</li></ul>
+            <b>PDF Workspace:</b>
+            <ul>
+                <li>Bild → PDF: 1 JPG hochladen → PDF erstellen → Download öffnen</li>
+                <li>PDF → Word: Text-PDF hochladen → Analyse prüfen → Word erstellen</li>
+                <li>PDF Merge: 2 PDFs hochladen → zusammenführen → Datei öffnen</li>
+                <li>PDF Split: PDF hochladen → 1-2 oder 1,3,5 exportieren</li>
+            </ul>
         </div>
         """, unsafe_allow_html=True)
 
 
 def render_footer() -> None:
-    st.markdown(f'<div class="wf-footer">{APP_NAME}. Version 1.2 Clean · Session-basierte Verarbeitung.</div>', unsafe_allow_html=True)
+    st.markdown(f'<div class="wf-footer">{APP_NAME}. Version 1.3 Clean Workspaces · Session-basierte Verarbeitung.</div>', unsafe_allow_html=True)
 
 
 # ---------- Render ----------
 inject_css()
 render_header()
-render_tool_selector()
+render_workspace_selector()
 
-if st.session_state.active_tool == "image_to_pdf":
-    render_image_to_pdf_converter()
-elif st.session_state.active_tool == "pdf_to_word":
-    render_pdf_to_word_converter()
-elif st.session_state.active_tool == "pdf_merge":
-    render_pdf_merge_converter()
+if st.session_state.active_workspace == "pdf":
+    render_pdf_workspace()
+elif st.session_state.active_workspace == "video":
+    render_coming_soon_workspace("Video & Audio", "Video zu MP3/MP4, Audio extrahieren und Komprimierung. Geplant für Version 1.5.", ["MP3", "MP4", "Compress", "Upload"], "video")
+elif st.session_state.active_workspace == "image":
+    render_coming_soon_workspace("Image Tools", "Bilder konvertieren, verkleinern, komprimieren und vorbereiten. Geplant nach PDF Compress.", ["JPG", "PNG", "WEBP", "Resize"], "image")
 else:
-    render_pdf_split_converter()
+    render_coming_soon_workspace("Office Convert", "Word, Excel, PowerPoint und HTML sauber in PDF umwandeln. Geplant nach den Kern-PDF-Tools.", ["Word", "Excel", "PowerPoint", "PDF"], "office")
 
 render_test_plan()
 render_footer()
