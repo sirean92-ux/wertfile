@@ -138,4 +138,13 @@ with tab_video:
         
         c_mp3, c_mp4 = st.columns(2)
         with c_mp3:
-            if st.button("🎵
+            if st.button("🎵 Convert to MP3"):
+                st.warning("Video-Schnittstelle wird verbunden...")
+        with c_mp4:
+            if st.button("🎞️ Convert to MP4"):
+                st.warning("Video-Schnittstelle wird verbunden...")
+
+st.markdown('</div>', unsafe_allow_html=True)
+
+# Footer
+st.markdown("<p style='text-align:center; color:#9CA3AF; font-size:12px; margin-top:100px;'>Wertfile. Technology Germany</p>", unsafe_allow_html=True)
