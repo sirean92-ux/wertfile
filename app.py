@@ -3,142 +3,144 @@ from PIL import Image
 import io
 
 # 1. Page Config
-st.set_page_config(page_title="Wertfile | Business Tools", page_icon="🛡️", layout="wide")
+st.set_page_config(page_title="Wertfile | Dashboard", page_icon="🛡️", layout="wide")
 
-# 2. Finom-Style Custom CSS
+# 2. Finom Dashboard CSS
 st.markdown("""
     <style>
-    /* Hintergrund & Font */
-    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap');
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
     
+    /* Hintergrund: Das typische Finom-Hellgrau */
     .stApp {
-        background-color: #FFFFFF;
+        background-color: #F4F7F9;
         font-family: 'Inter', sans-serif;
     }
 
-    /* Finom Blue-Black Header */
-    h1 {
-        color: #121926;
-        font-weight: 800 !important;
-        font-size: 3.5rem !important;
-        letter-spacing: -0.04em !important;
-        text-align: center;
-        margin-bottom: 0.5rem !important;
+    /* Verstecke Streamlit-Elemente */
+    header, footer, .stDeployButton {display:none !important;}
+
+    /* Sidebar-Ersatz Look */
+    .nav-header {
+        background-color: white;
+        padding: 1rem 2rem;
+        display: flex;
+        align-items: center;
+        border-bottom: 1px solid #E5E7EB;
+        margin-bottom: 2rem;
     }
 
-    .sub-header {
-        text-align: center;
-        color: #4B5565;
-        font-size: 1.2rem;
-        margin-bottom: 3rem;
-    }
-
-    /* Tool Card - Extrem clean */
-    .stTabs [data-baseweb="tab-list"] {
-        gap: 24px;
+    /* 3D-Kreis Animation */
+    .circle-container {
+        display: flex;
         justify-content: center;
-        border-bottom: none;
+        align-items: center;
+        margin-bottom: 20px;
+    }
+    
+    .animated-3d-circle {
+        width: 80px;
+        height: 80px;
+        background: linear-gradient(135deg, #FF7EB3 0%, #FF758C 50%, #FF7EB3 100%);
+        border-radius: 50%;
+        box-shadow: inset -10px -10px 20px rgba(0,0,0,0.1), 10px 10px 30px rgba(255, 117, 140, 0.4);
+        animation: rotate3d 4s infinite linear;
     }
 
-    .stTabs [data-baseweb="tab"] {
-        height: 50px;
-        background-color: #F8F9FB;
-        border-radius: 30px;
-        padding: 0px 30px;
-        color: #4B5565;
-        border: 1px solid #E5E7EB;
-        font-weight: 600;
+    @keyframes rotate3d {
+        0% { transform: perspective(500px) rotateY(0deg) rotateX(0deg) scale(1); }
+        50% { transform: perspective(500px) rotateY(180deg) rotateX(20deg) scale(1.1); }
+        100% { transform: perspective(500px) rotateY(360deg) rotateX(0deg) scale(1); }
     }
 
-    .stTabs [aria-selected="true"] {
-        background-color: #121926 !important;
-        color: white !important;
+    /* Finom-Cards (Weiß, dezent schattiert) */
+    .finom-card {
+        background-color: white;
+        border-radius: 24px;
+        padding: 30px;
+        box-shadow: 0 4px 20px rgba(0,0,0,0.03);
+        border: 1px solid rgba(0,0,0,0.02);
+        margin-bottom: 20px;
     }
 
-    /* Uploader Styling */
+    .finom-title {
+        font-size: 28px;
+        font-weight: 700;
+        color: #121926;
+        margin-bottom: 10px;
+    }
+
+    /* Uploader & Button Styling */
     .stFileUploader section {
-        background-color: #F8F9FB;
-        border: 2px dashed #E5E7EB;
-        border-radius: 16px;
-        padding: 2rem;
+        border-radius: 16px !important;
+        border: 1px dashed #D1D5DB !important;
+        background-color: #FAFAFB !important;
     }
 
-    /* Finom Primary Button */
     .stButton>button {
         width: 100%;
         border-radius: 12px;
-        background-color: #00E676; /* Finom Green Akzent */
-        color: #121926;
-        height: 3.5rem;
-        font-weight: 700;
-        font-size: 1.1rem;
+        background-color: #121926;
+        color: white;
+        height: 55px;
+        font-weight: 600;
         border: none;
-        box-shadow: 0 4px 14px 0 rgba(0,230,118,0.39);
-        transition: all 0.2s ease;
+        margin-top: 15px;
     }
-
-    .stButton>button:hover {
-        background-color: #00C864;
-        transform: scale(1.02);
-        color: #121926;
-    }
-
-    /* Verstecke Streamlit Branding */
-    #MainMenu {visibility: hidden;}
-    header {visibility: hidden;}
-    footer {visibility: hidden;}
     </style>
     """, unsafe_allow_html=True)
 
-# --- Layout ---
+# --- App Struktur ---
 
-# Zentrierter Container für den Content
-_, center_col, _ = st.columns([1, 2, 1])
+# 1. Custom Top Bar
+st.markdown("""
+    <div class="nav-header">
+        <span style="font-size: 24px; font-weight: 800; color: #121926;">finom</span>
+        <span style="margin: 0 15px; color: #D1D5DB;">|</span>
+        <span style="font-weight: 500; color: #4B5565;">Wertfile</span>
+    </div>
+    """, unsafe_allow_html=True)
 
-with center_col:
-    st.markdown('<h1>Wertfile</h1>', unsafe_allow_html=True)
-    st.markdown('<p class="sub-header">The financial-grade file manager for modern business.</p>', unsafe_allow_html=True)
+col_left, col_right = st.columns([1, 2])
 
-    tab1, tab2, tab3 = st.tabs(["Overview", "JPEG → PDF", "Settings"])
+with col_left:
+    st.markdown("""
+        <div class="finom-card">
+            <div class="circle-container">
+                <div class="animated-3d-circle"></div>
+            </div>
+            <h2 style="text-align:center; font-size: 22px;">Konvertierung</h2>
+            <p style="text-align:center; color: #6B7280; font-size: 14px;">Besser. Schneller. Günstiger.</p>
+        </div>
+    """, unsafe_allow_html=True)
+    
+    st.markdown("""
+        <div class="finom-card">
+            <p style="color: #6B7280; font-size: 12px; margin-bottom: 5px;">Status</p>
+            <p style="font-weight: 700; color: #10B981;">● Einsatzbereit</p>
+        </div>
+    """, unsafe_allow_html=True)
 
-    with tab1:
-        st.write("<br>", unsafe_allow_html=True)
-        st.markdown("""
-        ### Simplify your file workflow
-        Wertfile helps you to manage and convert files with bank-level privacy. 
-        No data is ever stored on our servers.
-        """)
-        
-        # Grid für Features
-        c1, c2 = st.columns(2)
-        with c1:
-            st.info("**Fast Deployment**\n\nConvert files in milliseconds.")
-        with c2:
-            st.success("**Privacy First**\n\nEncrypted in-memory processing.")
-
-    with tab2:
-        st.write("<br>", unsafe_allow_html=True)
-        files = st.file_uploader("", type=['jpg', 'jpeg', 'png'], accept_multiple_files=True)
-        
-        if files:
-            st.write(f"**{len(files)} files selected**")
-            if st.button("Convert to PDF"):
-                with st.spinner("Processing..."):
-                    images = [Image.open(f).convert('RGB') for f in files]
-                    pdf_buffer = io.BytesIO()
-                    images[0].save(pdf_buffer, format="PDF", save_all=True, append_images=images[1:])
-                    
-                    st.download_button(
-                        label="Download PDF Document",
-                        data=pdf_buffer.getvalue(),
-                        file_name="wertfile_export.pdf",
-                        mime="application/pdf"
-                    )
-
-    with tab3:
-        st.write("<br>", unsafe_allow_html=True)
-        st.write("Current Version: **1.0.4 (Pro)**")
-        st.write("Region: **Europe (Frankfurt)**")
+with col_right:
+    st.markdown('<div class="finom-card">', unsafe_allow_html=True)
+    st.markdown('<h1 class="finom-title">JPEG → PDF</h1>', unsafe_allow_html=True)
+    st.write("Wähle deine Dateien für eine sichere Verarbeitung.")
+    
+    uploaded_files = st.file_uploader("", type=['jpg', 'jpeg', 'png'], accept_multiple_files=True)
+    
+    if uploaded_files:
+        if st.button("Datei erstellen"):
+            with st.spinner(""):
+                images = [Image.open(f).convert('RGB') for f in uploaded_files]
+                pdf_buffer = io.BytesIO()
+                images[0].save(pdf_buffer, format="PDF", save_all=True, append_images=images[1:])
+                
+                st.download_button(
+                    label="📥 PDF herunterladen",
+                    data=pdf_buffer.getvalue(),
+                    file_name="wertfile_export.pdf",
+                    mime="application/pdf"
+                )
+    st.markdown('</div>', unsafe_allow_html=True)
 
 # Footer
-st.markdown("<br><br><p style='text-align: center; color: #9CA3AF; font-size: 14px;'>© 2026 Wertfile Technology. All rights reserved.</p>", unsafe_allow_html=True)
+st.markdown("<p style='text-align: center; color: #9CA3AF; font-size: 12px; margin-top: 50px;'>© 2026 Wertfile Technology</p>", unsafe_allow_html=True)
