@@ -1,52 +1,50 @@
 import streamlit as st
-from PIL import Image, ImageOps
+from PIL import Image, ImageOps, UnidentifiedImageError
 import io
+import zipfile
 from datetime import datetime
+from typing import List, Tuple
 
 # =========================================================
-# WERTFILE — Premium Streamlit Web App
-# Clean SaaS/Product-App Layout mit beweglichen 3D-Orbs
+# WERTFILE 1.0 — Stable MVP
+# Fokus: zuverlässig, einfach, testbar
+# Funktion: JPG/PNG/WEBP → PDF
 # =========================================================
+
+APP_NAME = "Wertfile"
+MAX_FILES = 50
+MAX_TOTAL_MB = 200
+MAX_SINGLE_MB = 25
+SUPPORTED_TYPES = ["jpg", "jpeg", "png", "webp"]
 
 st.set_page_config(
-    page_title="Wertfile | Smart File Workspace",
+    page_title=f"{APP_NAME} | JPG & PNG zu PDF",
     page_icon="🛡️",
     layout="wide",
     initial_sidebar_state="collapsed",
 )
 
-# ---------- State ----------
-if "active_tool" not in st.session_state:
-    st.session_state.active_tool = "pdf"
-
-
-def set_tool(tool_name: str):
-    st.session_state.active_tool = tool_name
-
 
 # ---------- CSS ----------
-def inject_css():
+def inject_css() -> None:
     st.markdown(
         """
         <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
 
         :root {
-            --bg: #F6F8FC;
-            --ink: #08111F;
+            --bg: #F7F9FC;
+            --card: #FFFFFF;
+            --ink: #0F172A;
             --muted: #64748B;
-            --line: rgba(148, 163, 184, 0.24);
-            --white-glass: rgba(255, 255, 255, 0.72);
-            --white-strong: rgba(255, 255, 255, 0.92);
+            --line: #E2E8F0;
             --primary: #101828;
-            --purple: #7C3AED;
-            --pink: #DB2777;
+            --primary-soft: #EEF2FF;
             --blue: #2563EB;
             --green: #10B981;
-            --shadow-soft: 0 22px 70px rgba(15, 23, 42, 0.10);
-            --shadow-hover: 0 34px 100px rgba(15, 23, 42, 0.16);
-            --radius-xl: 34px;
-            --radius-lg: 24px;
+            --red: #EF4444;
+            --shadow: 0 20px 60px rgba(15, 23, 42, 0.08);
+            --radius: 26px;
         }
 
         html, body, [class*="css"] {
@@ -55,10 +53,9 @@ def inject_css():
 
         .stApp {
             background:
-                radial-gradient(circle at 8% 18%, rgba(124,58,237,0.13), transparent 28%),
-                radial-gradient(circle at 88% 16%, rgba(34,211,238,0.14), transparent 30%),
-                radial-gradient(circle at 50% 100%, rgba(219,39,119,0.10), transparent 34%),
-                linear-gradient(180deg, #F8FAFC 0%, #EEF3F9 100%) !important;
+                radial-gradient(circle at 8% 12%, rgba(37,99,235,0.10), transparent 28%),
+                radial-gradient(circle at 92% 8%, rgba(16,185,129,0.10), transparent 28%),
+                linear-gradient(180deg, #F8FAFC 0%, #EEF3F8 100%) !important;
             color: var(--ink);
         }
 
@@ -67,622 +64,306 @@ def inject_css():
         }
 
         .block-container {
-            max-width: 1320px;
-            padding-top: 98px !important;
-            padding-bottom: 54px !important;
+            max-width: 1180px;
+            padding-top: 44px !important;
+            padding-bottom: 52px !important;
         }
 
         h1, h2, h3, h4, p, span, label, div {
             color: var(--ink);
         }
 
-        p { line-height: 1.62; }
+        p { line-height: 1.6; }
 
-        /* ---------- Motion ---------- */
-        @keyframes orb-dance {
-            0%, 100% { transform: translate3d(0, 0, 0) rotate(0deg) scale(1); }
-            20% { transform: translate3d(4px, -9px, 0) rotate(8deg) scale(1.045); }
-            45% { transform: translate3d(-3px, -3px, 0) rotate(-5deg) scale(0.99); }
-            70% { transform: translate3d(5px, 6px, 0) rotate(6deg) scale(1.03); }
-        }
-
-        @keyframes orb-glow {
-            0%, 100% { filter: saturate(1.02) brightness(1); }
-            50% { filter: saturate(1.25) brightness(1.08); }
-        }
-
-        @keyframes soft-float {
-            0%, 100% { transform: translateY(0) scale(1); }
-            50% { transform: translateY(-7px) scale(1.006); }
-        }
-
-        @keyframes shine-sweep {
-            0% { transform: translateX(-140%) rotate(18deg); opacity: 0; }
-            35% { opacity: .55; }
-            100% { transform: translateX(160%) rotate(18deg); opacity: 0; }
-        }
-
-        @keyframes background-orb-1 {
-            0%, 100% { transform: translate(0, 0) scale(1); }
-            50% { transform: translate(18px, -16px) scale(1.08); }
-        }
-
-        @keyframes background-orb-2 {
-            0%, 100% { transform: translate(0, 0) scale(1); }
-            50% { transform: translate(-14px, 12px) scale(0.96); }
-        }
-
-        /* ---------- Nav ---------- */
-        .wf-nav {
-            position: fixed;
-            top: 18px;
-            left: 50%;
-            transform: translateX(-50%);
-            width: min(1260px, calc(100% - 32px));
-            z-index: 9999;
+        .wf-topbar {
             display: flex;
             align-items: center;
             justify-content: space-between;
-            padding: 13px 16px;
-            border-radius: 999px;
-            border: 1px solid rgba(255,255,255,0.75);
-            background: rgba(255,255,255,0.72);
-            backdrop-filter: blur(24px) saturate(1.35);
-            -webkit-backdrop-filter: blur(24px) saturate(1.35);
-            box-shadow: 0 20px 70px rgba(15,23,42,0.08);
+            gap: 16px;
+            margin-bottom: 24px;
         }
 
         .wf-brand {
             display: flex;
             align-items: center;
-            gap: 11px;
+            gap: 12px;
             font-weight: 900;
-            letter-spacing: -0.7px;
-            font-size: 23px;
+            font-size: 24px;
+            letter-spacing: -0.8px;
         }
 
-        .wf-nav-links {
-            display: flex;
+        .wf-logo {
+            width: 42px;
+            height: 42px;
+            border-radius: 15px;
+            display: grid;
+            place-items: center;
+            color: #FFFFFF !important;
+            font-weight: 900;
+            background: linear-gradient(135deg, #101828 0%, #2563EB 55%, #10B981 100%);
+            box-shadow: 0 14px 30px rgba(37,99,235,0.23);
+        }
+
+        .wf-badge {
+            display: inline-flex;
             align-items: center;
-            gap: 10px;
-            padding: 4px;
+            gap: 8px;
             border-radius: 999px;
-            background: rgba(248,250,252,0.75);
-            border: 1px solid rgba(226,232,240,0.78);
-        }
-
-        .wf-nav-links span {
-            padding: 10px 16px;
-            border-radius: 999px;
+            padding: 9px 13px;
+            background: rgba(255,255,255,0.82);
+            border: 1px solid var(--line);
+            color: #475569 !important;
             font-size: 13px;
             font-weight: 800;
-            color: #475569 !important;
+            box-shadow: 0 10px 28px rgba(15,23,42,0.04);
         }
 
-        .wf-nav-links span:first-child {
-            background: white;
-            color: #101828 !important;
-            box-shadow: 0 10px 24px rgba(15,23,42,0.06);
-        }
-
-        .wf-nav-cta {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
-
-        .wf-nav-pill {
+        .wf-dot {
+            width: 8px;
+            height: 8px;
             border-radius: 999px;
-            padding: 10px 14px;
-            background: #101828;
-            color: white !important;
-            font-weight: 850;
-            font-size: 13px;
-            box-shadow: 0 14px 30px rgba(16,24,40,0.18);
+            background: var(--green);
+            box-shadow: 0 0 0 5px rgba(16,185,129,0.12);
         }
 
-        /* ---------- Orbs ---------- */
-        .wf-orb {
-            width: 72px;
-            height: 72px;
-            border-radius: 999px;
+        .wf-hero {
+            background: rgba(255,255,255,0.84);
+            border: 1px solid rgba(226,232,240,0.92);
+            border-radius: 34px;
+            padding: 34px;
+            box-shadow: var(--shadow);
+            margin-bottom: 20px;
             position: relative;
             overflow: hidden;
-            isolation: isolate;
-            flex: 0 0 auto;
-            background:
-                radial-gradient(circle at 28% 22%, rgba(255,255,255,0.98) 0 7%, transparent 20%),
-                radial-gradient(circle at 72% 28%, rgba(255,255,255,0.52) 0 8%, transparent 25%),
-                radial-gradient(circle at 64% 78%, rgba(255,255,255,0.34) 0 9%, transparent 30%),
-                linear-gradient(135deg, rgba(255,130,210,0.98), rgba(139,92,246,0.92), rgba(34,211,238,0.86));
-            box-shadow:
-                inset 13px 14px 24px rgba(255,255,255,0.42),
-                inset -18px -20px 30px rgba(88,28,135,0.20),
-                0 22px 44px rgba(124,58,237,0.24),
-                0 8px 18px rgba(15,23,42,0.08);
-            animation: orb-dance 5.2s ease-in-out infinite, orb-glow 3.8s ease-in-out infinite;
-            will-change: transform, filter;
-            transition: transform .35s cubic-bezier(.2,.8,.2,1), box-shadow .35s ease;
         }
 
-        .wf-orb::before {
+        .wf-hero::after {
             content: "";
             position: absolute;
-            inset: 8px;
-            border-radius: 50%;
-            border: 1px solid rgba(255,255,255,0.58);
-            background:
-                linear-gradient(112deg, transparent 18%, rgba(255,255,255,0.58) 31%, transparent 43%),
-                linear-gradient(30deg, transparent 30%, rgba(255,255,255,0.28) 47%, transparent 60%);
-            transform: rotate(-26deg) scale(1.08);
+            right: -90px;
+            top: -120px;
+            width: 300px;
+            height: 300px;
+            border-radius: 999px;
+            background: radial-gradient(circle, rgba(37,99,235,0.14), transparent 70%);
+        }
+
+        .wf-hero > * {
+            position: relative;
             z-index: 1;
         }
 
-        .wf-orb::after {
-            content: "";
-            position: absolute;
-            width: 96px;
-            height: 38px;
-            left: -11px;
-            top: 25px;
-            border-radius: 999px;
-            border: 1px solid rgba(255,255,255,0.50);
-            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.34), transparent);
-            transform: rotate(-31deg);
-            z-index: 2;
-        }
-
-        .wf-orb:hover {
-            animation-play-state: paused;
-            transform: translateY(-10px) rotate(9deg) scale(1.13) !important;
-            box-shadow:
-                inset 13px 14px 24px rgba(255,255,255,0.46),
-                inset -18px -20px 30px rgba(88,28,135,0.22),
-                0 30px 70px rgba(124,58,237,0.34),
-                0 10px 22px rgba(15,23,42,0.10);
-        }
-
-        .wf-orb.small { width: 44px; height: 44px; }
-        .wf-orb.medium { width: 62px; height: 62px; }
-        .wf-orb.large { width: 112px; height: 112px; }
-
-        .blue-orb {
-            background:
-                radial-gradient(circle at 28% 22%, rgba(255,255,255,0.98) 0 7%, transparent 20%),
-                radial-gradient(circle at 72% 28%, rgba(255,255,255,0.54) 0 8%, transparent 25%),
-                linear-gradient(135deg, #A5B4FC 0%, #7C3AED 42%, #0EA5E9 100%);
-            box-shadow: inset 13px 14px 24px rgba(255,255,255,0.42), inset -18px -20px 30px rgba(30,64,175,0.20), 0 22px 44px rgba(59,130,246,0.25), 0 8px 18px rgba(15,23,42,0.08);
-        }
-
-        .pink-orb {
-            background:
-                radial-gradient(circle at 28% 22%, rgba(255,255,255,0.98) 0 7%, transparent 20%),
-                radial-gradient(circle at 72% 28%, rgba(255,255,255,0.54) 0 8%, transparent 25%),
-                linear-gradient(135deg, #FDBA74 0%, #F472B6 42%, #7C3AED 100%);
-            box-shadow: inset 13px 14px 24px rgba(255,255,255,0.42), inset -18px -20px 30px rgba(157,23,77,0.18), 0 22px 44px rgba(219,39,119,0.24), 0 8px 18px rgba(15,23,42,0.08);
-            animation-delay: -1.2s;
-        }
-
-        .green-orb {
-            background:
-                radial-gradient(circle at 28% 22%, rgba(255,255,255,0.98) 0 7%, transparent 20%),
-                radial-gradient(circle at 72% 28%, rgba(255,255,255,0.54) 0 8%, transparent 25%),
-                linear-gradient(135deg, #A7F3D0 0%, #34D399 40%, #2563EB 100%);
-            box-shadow: inset 13px 14px 24px rgba(255,255,255,0.42), inset -18px -20px 30px rgba(6,95,70,0.18), 0 22px 44px rgba(16,185,129,0.24), 0 8px 18px rgba(15,23,42,0.08);
-            animation-delay: -2.2s;
-        }
-
-        /* ---------- Hero ---------- */
-        .wf-hero {
-            position: relative;
-            display: grid;
-            grid-template-columns: 0.95fr 1.05fr;
-            gap: 26px;
-            align-items: center;
-            margin-bottom: 22px;
-            min-height: 390px;
-        }
-
-        .wf-floating-bg {
-            position: absolute;
-            right: 7%;
-            top: 24px;
-            width: 230px;
-            height: 230px;
-            border-radius: 50%;
-            background:
-                radial-gradient(circle at 30% 20%, rgba(255,255,255,0.95), transparent 13%),
-                linear-gradient(135deg, rgba(244,114,182,0.42), rgba(124,58,237,0.34), rgba(34,211,238,0.32));
-            filter: blur(0.2px);
-            box-shadow: 0 34px 110px rgba(124,58,237,0.20);
-            animation: background-orb-1 7s ease-in-out infinite;
-            pointer-events: none;
-        }
-
-        .wf-floating-bg.two {
-            width: 82px;
-            height: 82px;
-            right: 1%;
-            top: 215px;
-            opacity: .72;
-            animation: background-orb-2 6s ease-in-out infinite;
-        }
-
-        .wf-kicker {
-            width: fit-content;
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            padding: 9px 13px;
-            border-radius: 999px;
-            background: rgba(255,255,255,0.72);
-            border: 1px solid rgba(255,255,255,0.82);
-            backdrop-filter: blur(18px);
-            box-shadow: 0 14px 32px rgba(15,23,42,0.06);
-            font-size: 13px;
-            font-weight: 850;
-            color: #7C3AED !important;
-            margin-bottom: 20px;
-        }
-
         .wf-hero h1 {
-            font-size: clamp(45px, 5.2vw, 76px);
-            line-height: .96;
-            letter-spacing: -4.2px;
-            margin: 0 0 20px 0;
+            font-size: clamp(34px, 4.5vw, 58px);
+            line-height: 1;
+            letter-spacing: -2.8px;
+            margin: 0 0 14px 0;
             font-weight: 900;
         }
 
-        .gradient-word {
-            background: linear-gradient(90deg, #2563EB, #7C3AED, #DB2777);
+        .wf-gradient {
+            background: linear-gradient(90deg, #2563EB, #7C3AED, #10B981);
             -webkit-background-clip: text;
             background-clip: text;
             color: transparent !important;
         }
 
-        .wf-hero-copy {
-            color: #64748B !important;
-            font-size: 17px;
-            max-width: 610px;
-            margin-bottom: 26px;
-        }
-
-        .wf-hero-actions {
-            display: flex;
-            align-items: center;
-            gap: 14px;
-            flex-wrap: wrap;
-        }
-
-        .wf-main-btn, .wf-soft-btn {
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            gap: 8px;
-            min-height: 48px;
-            padding: 0 18px;
-            border-radius: 16px;
-            font-size: 14px;
-            font-weight: 850;
-        }
-
-        .wf-main-btn {
-            color: white !important;
-            background: #101828;
-            box-shadow: 0 16px 34px rgba(16,24,40,0.22);
-        }
-
-        .wf-soft-btn {
-            color: #475569 !important;
-            background: rgba(255,255,255,0.72);
-            border: 1px solid rgba(255,255,255,0.78);
-        }
-
-        .wf-hero-tools {
-            position: relative;
-            z-index: 1;
-            display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            gap: 16px;
-        }
-
-        /* ---------- Cards ---------- */
-        .glass-card {
-            position: relative;
-            overflow: hidden;
-            border-radius: var(--radius-xl);
-            background: linear-gradient(145deg, rgba(255,255,255,0.92), rgba(255,255,255,0.58));
-            border: 1px solid rgba(255,255,255,0.78);
-            backdrop-filter: blur(26px) saturate(1.35);
-            -webkit-backdrop-filter: blur(26px) saturate(1.35);
-            box-shadow:
-                inset 0 1px 0 rgba(255,255,255,0.88),
-                var(--shadow-soft);
-            transition: transform .35s cubic-bezier(.2,.8,.2,1), box-shadow .35s ease, border-color .35s ease;
-        }
-
-        .glass-card::before {
-            content: "";
-            position: absolute;
-            top: -30%;
-            left: -70%;
-            width: 52%;
-            height: 160%;
-            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.55), transparent);
-            transform: rotate(18deg);
-            opacity: 0;
-            pointer-events: none;
-        }
-
-        .glass-card:hover {
-            transform: translateY(-8px) scale(1.01);
-            box-shadow:
-                inset 0 1px 0 rgba(255,255,255,0.94),
-                var(--shadow-hover);
-        }
-
-        .glass-card:hover::before {
-            animation: shine-sweep 1s ease forwards;
-        }
-
-        .tool-card {
-            min-height: 270px;
-            padding: 26px;
-            animation: soft-float 7s ease-in-out infinite;
-        }
-
-        .tool-card:nth-child(2) { animation-delay: -1.6s; }
-        .tool-card:nth-child(3) { animation-delay: -3.2s; }
-
-        .tool-card h3 {
-            margin: 18px 0 8px 0;
-            font-size: 21px;
-            letter-spacing: -0.6px;
-            font-weight: 900;
-        }
-
-        .tool-card p {
-            color: #64748B !important;
-            margin: 0 0 18px 0;
-            font-size: 14px;
-        }
-
-        .status-pill {
-            display: inline-flex;
-            align-items: center;
-            gap: 8px;
-            padding: 8px 12px;
-            border-radius: 999px;
-            background: rgba(248,250,252,0.88);
-            border: 1px solid rgba(226,232,240,0.78);
-            color: #334155 !important;
-            font-size: 12px;
-            font-weight: 850;
-        }
-
-        .green-dot, .gray-dot, .pink-dot {
-            width: 8px;
-            height: 8px;
-            border-radius: 999px;
-            display: inline-block;
-        }
-        .green-dot { background: #10B981; box-shadow: 0 0 0 5px rgba(16,185,129,0.12); }
-        .gray-dot { background: #94A3B8; }
-        .pink-dot { background: #F472B6; box-shadow: 0 0 0 5px rgba(244,114,182,0.12); }
-
-        /* ---------- Native Streamlit Buttons for Tool Selection ---------- */
-        div[data-testid="stHorizontalBlock"] .stButton > button {
-            min-height: 48px !important;
-        }
-
-        .stButton > button, .stDownloadButton > button {
-            border-radius: 17px !important;
-            min-height: 54px !important;
-            border: none !important;
-            color: white !important;
-            background: #101828 !important;
-            font-weight: 850 !important;
-            box-shadow: 0 16px 34px rgba(16,24,40,0.18) !important;
-            transition: transform .23s ease, box-shadow .23s ease !important;
-        }
-
-        .stButton > button:hover, .stDownloadButton > button:hover {
-            transform: translateY(-2px) scale(1.006);
-            box-shadow: 0 20px 46px rgba(16,24,40,0.25) !important;
-        }
-
-        /* ---------- Workspace ---------- */
-        .workspace-shell {
-            margin-top: 20px;
-            padding: 26px;
-            border-radius: 36px;
-        }
-
-        .workspace-head {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            gap: 18px;
-            margin-bottom: 22px;
-        }
-
-        .workspace-title {
-            display: flex;
-            align-items: center;
-            gap: 14px;
-        }
-
-        .workspace-title h2 {
+        .wf-hero p {
+            max-width: 720px;
             margin: 0;
-            font-size: 27px;
-            letter-spacing: -1px;
-            font-weight: 900;
+            color: var(--muted) !important;
+            font-size: 17px;
+            font-weight: 550;
         }
 
-        .workspace-title h2 span {
-            color: #DB2777 !important;
+        .wf-stepbar {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 12px;
+            margin: 20px 0;
         }
 
-        .workspace-title p {
-            margin: 4px 0 0 0;
-            color: #64748B !important;
+        .wf-step {
+            background: rgba(255,255,255,0.86);
+            border: 1px solid var(--line);
+            border-radius: 20px;
+            padding: 16px;
+            box-shadow: 0 12px 32px rgba(15,23,42,0.05);
+        }
+
+        .wf-step b {
+            display: block;
             font-size: 14px;
+            margin-bottom: 4px;
+        }
+
+        .wf-step span {
+            color: var(--muted) !important;
+            font-size: 12px;
             font-weight: 650;
         }
 
-        .workspace-grid {
+        .wf-card {
+            background: rgba(255,255,255,0.90);
+            border: 1px solid rgba(226,232,240,0.96);
+            border-radius: var(--radius);
+            padding: 24px;
+            box-shadow: var(--shadow);
+            margin-bottom: 18px;
+        }
+
+        .wf-card h2, .wf-card h3 {
+            margin-top: 0;
+            letter-spacing: -0.8px;
+        }
+
+        .wf-card-subtitle {
+            color: var(--muted) !important;
+            margin-top: -8px;
+            margin-bottom: 18px;
+            font-size: 14px;
+            font-weight: 550;
+        }
+
+        .wf-info-grid {
             display: grid;
-            grid-template-columns: 1.02fr 0.98fr;
-            gap: 18px;
-        }
-
-        .panel {
-            border-radius: 28px;
-            padding: 22px;
-        }
-
-        .panel h3 {
-            margin: 0 0 14px 0;
-            font-size: 17px;
-            letter-spacing: -0.4px;
-            font-weight: 900;
-        }
-
-        .empty-preview {
-            min-height: 315px;
-            display: grid;
-            place-items: center;
-            text-align: center;
-            border-radius: 24px;
-            background: rgba(248,250,252,0.72);
-            border: 1px solid rgba(226,232,240,0.75);
-        }
-
-        .empty-preview p {
-            color: #64748B !important;
-            margin: 8px 0 0 0;
-            max-width: 360px;
-        }
-
-        .file-list {
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
             margin-top: 14px;
+        }
+
+        .wf-info-box {
+            background: #F8FAFC;
+            border: 1px solid var(--line);
+            border-radius: 16px;
+            padding: 13px;
+        }
+
+        .wf-info-box b {
+            display: block;
+            font-size: 18px;
+        }
+
+        .wf-info-box span {
+            color: var(--muted) !important;
+            font-size: 12px;
+            font-weight: 700;
+        }
+
+        .wf-file-list {
             display: grid;
             gap: 8px;
+            margin-top: 12px;
         }
 
-        .file-row {
+        .wf-file-row {
             display: flex;
             align-items: center;
             justify-content: space-between;
-            padding: 11px 13px;
+            gap: 12px;
+            padding: 12px 13px;
             border-radius: 15px;
-            background: rgba(248,250,252,0.82);
-            border: 1px solid rgba(226,232,240,0.72);
+            background: #F8FAFC;
+            border: 1px solid var(--line);
             font-size: 13px;
-            font-weight: 750;
+            font-weight: 700;
         }
 
-        .file-row span:last-child {
-            color: #64748B !important;
+        .wf-file-row small {
+            color: var(--muted) !important;
+            font-weight: 700;
         }
 
-        /* ---------- Form Elements ---------- */
+        .wf-preview-empty {
+            min-height: 300px;
+            border-radius: 22px;
+            background: #F8FAFC;
+            border: 1px dashed #CBD5E1;
+            display: grid;
+            place-items: center;
+            text-align: center;
+            padding: 24px;
+        }
+
+        .wf-preview-empty h3 {
+            margin-bottom: 6px;
+        }
+
+        .wf-preview-empty p {
+            color: var(--muted) !important;
+            margin: 0;
+            max-width: 340px;
+        }
+
+        .wf-test-card {
+            border-radius: 22px;
+            padding: 18px;
+            background: #F8FAFC;
+            border: 1px solid var(--line);
+        }
+
+        .wf-test-card ul {
+            margin-bottom: 0;
+            color: #334155;
+        }
+
+        .wf-footer {
+            text-align: center;
+            color: #94A3B8 !important;
+            font-size: 12px;
+            font-weight: 700;
+            margin-top: 20px;
+        }
+
         .stFileUploader section {
-            border-radius: 26px !important;
-            border: 1.5px dashed rgba(124,58,237,0.36) !important;
-            background:
-                radial-gradient(circle at 50% 0%, rgba(124,58,237,0.08), transparent 32%),
-                linear-gradient(145deg, rgba(255,255,255,0.94), rgba(255,255,255,0.68)) !important;
-            padding: 34px !important;
-            box-shadow:
-                inset 0 1px 0 rgba(255,255,255,0.88),
-                0 18px 46px rgba(15,23,42,0.08) !important;
-            backdrop-filter: blur(20px) saturate(1.3);
-            -webkit-backdrop-filter: blur(20px) saturate(1.3);
-            transition: transform .25s ease, box-shadow .25s ease, border-color .25s ease;
+            border-radius: 22px !important;
+            border: 1.5px dashed #CBD5E1 !important;
+            background: #FFFFFF !important;
+            padding: 30px !important;
         }
 
         .stFileUploader section:hover {
-            transform: translateY(-3px);
-            border-color: rgba(124,58,237,0.58) !important;
-            box-shadow:
-                inset 0 1px 0 rgba(255,255,255,0.95),
-                0 24px 64px rgba(124,58,237,0.12) !important;
-        }
-
-        .stFileUploader section svg,
-        .stSelectbox svg,
-        .stTextInput svg {
-            color: #0F172A !important;
-            fill: #0F172A !important;
-            opacity: 1 !important;
-            filter: drop-shadow(0 3px 6px rgba(15,23,42,0.16));
-        }
-
-        .stFileUploader label, .stTextInput label, .stSelectbox label, .stCheckbox label {
-            font-weight: 850 !important;
-            color: #101828 !important;
+            border-color: #2563EB !important;
+            background: #F8FAFC !important;
         }
 
         .stTextInput input,
         .stSelectbox [data-baseweb="select"],
         .stSelectbox [data-baseweb="select"] > div {
-            min-height: 56px !important;
-            border-radius: 18px !important;
-            border: 1px solid rgba(100,116,139,0.38) !important;
-            background: rgba(255,255,255,0.96) !important;
-            color: #0B1020 !important;
-            font-weight: 800 !important;
-            box-shadow:
-                inset 0 1px 0 rgba(255,255,255,0.95),
-                0 14px 34px rgba(15,23,42,0.08) !important;
-            transition: transform .22s ease, box-shadow .22s ease, border-color .22s ease !important;
-        }
-
-        .stTextInput input:focus,
-        .stSelectbox [data-baseweb="select"]:focus-within {
-            border-color: rgba(124,58,237,0.62) !important;
-            box-shadow:
-                0 0 0 5px rgba(124,58,237,0.10),
-                0 18px 44px rgba(15,23,42,0.12) !important;
-            transform: translateY(-1px);
-        }
-
-        .stTextInput input::placeholder {
-            color: #94A3B8 !important;
+            min-height: 50px !important;
+            border-radius: 15px !important;
+            border-color: #CBD5E1 !important;
+            background: #FFFFFF !important;
+            color: #0F172A !important;
             font-weight: 700 !important;
         }
 
+        .stButton > button,
+        .stDownloadButton > button {
+            border-radius: 15px !important;
+            min-height: 52px !important;
+            border: none !important;
+            background: #101828 !important;
+            color: white !important;
+            font-weight: 850 !important;
+            box-shadow: 0 14px 30px rgba(16,24,40,0.18) !important;
+            transition: transform .2s ease, box-shadow .2s ease !important;
+        }
+
+        .stButton > button:hover,
+        .stDownloadButton > button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 18px 40px rgba(16,24,40,0.25) !important;
+        }
+
         .stAlert {
-            border-radius: 20px !important;
+            border-radius: 16px !important;
         }
 
-        /* ---------- Footer ---------- */
-        .wf-footer {
-            display: grid;
-            grid-template-columns: repeat(4, 1fr);
-            gap: 12px;
-            margin-top: 18px;
-            padding: 14px;
-            border-radius: 24px;
-            background: rgba(255,255,255,0.52);
-            border: 1px solid rgba(255,255,255,0.72);
-            backdrop-filter: blur(18px);
-        }
-
-        .wf-footer-item {
-            text-align: center;
-            color: #64748B !important;
-            font-size: 13px;
-            font-weight: 750;
-        }
-
-        @media (max-width: 1050px) {
-            .wf-hero, .workspace-grid { grid-template-columns: 1fr; }
-            .wf-hero-tools { grid-template-columns: 1fr; }
-            .wf-floating-bg { opacity: .35; }
-            .wf-nav-links { display: none; }
-            .wf-footer { grid-template-columns: 1fr 1fr; }
+        @media (max-width: 900px) {
+            .wf-topbar { align-items: flex-start; flex-direction: column; }
+            .wf-stepbar { grid-template-columns: 1fr 1fr; }
+            .wf-info-grid { grid-template-columns: 1fr; }
         }
         </style>
         """,
@@ -690,212 +371,300 @@ def inject_css():
     )
 
 
-# ---------- UI Blocks ----------
-def render_nav():
+# ---------- Helpers ----------
+def mb(size_bytes: int) -> float:
+    return size_bytes / (1024 * 1024)
+
+
+def validate_files(uploaded_files) -> Tuple[List[str], List[str]]:
+    """Returns warnings and blocking errors."""
+    warnings = []
+    errors = []
+
+    if not uploaded_files:
+        return warnings, errors
+
+    if len(uploaded_files) > MAX_FILES:
+        errors.append(f"Bitte maximal {MAX_FILES} Dateien hochladen.")
+
+    total_mb = sum(mb(file.size) for file in uploaded_files)
+    if total_mb > MAX_TOTAL_MB:
+        errors.append(f"Die Gesamtgröße liegt bei {total_mb:.1f} MB. Erlaubt sind maximal {MAX_TOTAL_MB} MB.")
+
+    for file in uploaded_files:
+        file_mb = mb(file.size)
+        if file_mb > MAX_SINGLE_MB:
+            errors.append(f"{file.name} ist {file_mb:.1f} MB groß. Pro Datei sind maximal {MAX_SINGLE_MB} MB empfohlen/erlaubt.")
+
+        ext = file.name.split(".")[-1].lower() if "." in file.name else ""
+        if ext not in SUPPORTED_TYPES:
+            errors.append(f"{file.name} hat ein nicht unterstütztes Format.")
+
+    if len(uploaded_files) > 20:
+        warnings.append("Viele Dateien können die Verarbeitung verlangsamen. Für Version 1.0 sind kleinere Batches stabiler.")
+
+    return warnings, errors
+
+
+def open_image_safely(file) -> Image.Image:
+    try:
+        image = Image.open(file)
+        image = ImageOps.exif_transpose(image)
+        return image.convert("RGB")
+    except UnidentifiedImageError:
+        raise ValueError(f"{file.name} konnte nicht als Bild erkannt werden.")
+    except Exception as exc:
+        raise ValueError(f"{file.name} konnte nicht gelesen werden: {exc}")
+
+
+def fit_to_page(image: Image.Image, page_format: str, margin: int, background: str = "white") -> Image.Image:
+    if page_format == "Originalgröße":
+        return image
+
+    page_sizes = {
+        "A4 Hochformat": (1240, 1754),
+        "A4 Querformat": (1754, 1240),
+        "Letter Hochformat": (1275, 1650),
+        "Letter Querformat": (1650, 1275),
+    }
+
+    canvas_size = page_sizes.get(page_format, page_sizes["A4 Hochformat"])
+    canvas = Image.new("RGB", canvas_size, background)
+
+    max_w = max(100, canvas_size[0] - (margin * 2))
+    max_h = max(100, canvas_size[1] - (margin * 2))
+
+    img = image.copy()
+    img.thumbnail((max_w, max_h), Image.Resampling.LANCZOS)
+
+    x = (canvas_size[0] - img.width) // 2
+    y = (canvas_size[1] - img.height) // 2
+    canvas.paste(img, (x, y))
+    return canvas
+
+
+def create_pdf(uploaded_files, page_format: str, margin_size: str, sort_mode: str, quality: int) -> bytes:
+    files = list(uploaded_files)
+
+    if sort_mode == "Dateiname A–Z":
+        files = sorted(files, key=lambda f: f.name.lower())
+    elif sort_mode == "Dateiname Z–A":
+        files = sorted(files, key=lambda f: f.name.lower(), reverse=True)
+
+    margin_map = {
+        "Keine": 0,
+        "Klein": 40,
+        "Normal": 80,
+        "Groß": 130,
+    }
+    margin = margin_map.get(margin_size, 80)
+
+    images = []
+    for file in files:
+        file.seek(0)
+        image = open_image_safely(file)
+        image = fit_to_page(image, page_format, margin)
+        images.append(image)
+
+    if not images:
+        raise ValueError("Keine gültigen Bilder vorhanden.")
+
+    buffer = io.BytesIO()
+    images[0].save(
+        buffer,
+        format="PDF",
+        save_all=True,
+        append_images=images[1:],
+        resolution=150.0,
+        quality=quality,
+        optimize=True,
+    )
+    buffer.seek(0)
+    return buffer.getvalue()
+
+
+def create_preview_image(uploaded_file, page_format: str, margin_size: str) -> Image.Image:
+    uploaded_file.seek(0)
+    image = open_image_safely(uploaded_file)
+    margin_map = {"Keine": 0, "Klein": 40, "Normal": 80, "Groß": 130}
+    return fit_to_page(image, page_format, margin_map.get(margin_size, 80))
+
+
+def create_uploaded_zip(uploaded_files) -> bytes:
+    buffer = io.BytesIO()
+    with zipfile.ZipFile(buffer, "w", zipfile.ZIP_DEFLATED) as zip_file:
+        for file in uploaded_files:
+            file.seek(0)
+            zip_file.writestr(file.name, file.read())
+    buffer.seek(0)
+    return buffer.getvalue()
+
+
+# ---------- UI ----------
+def render_header() -> None:
     st.markdown(
         """
-        <div class="wf-nav">
+        <div class="wf-topbar">
             <div class="wf-brand">
-                <div class="wf-orb small blue-orb"></div>
+                <div class="wf-logo">W</div>
                 <div>Wertfile.</div>
             </div>
-            <div class="wf-nav-links">
-                <span>Workspace</span>
-                <span>Tools</span>
-                <span>Preise</span>
-                <span>Ressourcen</span>
-            </div>
-            <div class="wf-nav-cta">
-                <span class="wf-nav-pill">Kostenlos starten</span>
-            </div>
+            <div class="wf-badge"><span class="wf-dot"></span>Version 1.0 · Stable MVP</div>
+        </div>
+        <section class="wf-hero">
+            <h1>Bilder zu PDF.<br><span class="wf-gradient">Einfach, sauber, zuverlässig.</span></h1>
+            <p>
+                Lade JPG, PNG oder WEBP-Dateien hoch, prüfe die Reihenfolge, wähle ein Seitenformat
+                und exportiere ein sauberes PDF. Diese Version ist bewusst stabil und testbar gebaut.
+            </p>
+        </section>
+        <div class="wf-stepbar">
+            <div class="wf-step"><b>1. Upload</b><span>Bilder auswählen</span></div>
+            <div class="wf-step"><b>2. Prüfen</b><span>Vorschau & Reihenfolge</span></div>
+            <div class="wf-step"><b>3. Einstellen</b><span>Format & Ränder</span></div>
+            <div class="wf-step"><b>4. Export</b><span>PDF herunterladen</span></div>
         </div>
         """,
         unsafe_allow_html=True,
     )
 
 
-def render_hero():
-    st.markdown(
-        """
-        <section class="wf-hero">
-            <div class="wf-floating-bg"></div>
-            <div class="wf-floating-bg two"></div>
-            <div>
-                <div class="wf-kicker">
-                    <div class="wf-orb small pink-orb"></div>
-                    File Operations. Smarter.
-                </div>
-                <h1>Ein Workspace.<br><span class="gradient-word">Mehrere Tools.</span></h1>
-                <p class="wf-hero-copy">
-                    Wertfile kombiniert leistungsstarke Module für Konvertierung,
-                    Verarbeitung und sichere Datenflüsse — schnell, zuverlässig und audit-ready.
-                </p>
-                <div class="wf-hero-actions">
-                    <span class="wf-main-btn">Loslegen →</span>
-                    <span class="wf-soft-btn">▷ So funktioniert’s</span>
-                </div>
-            </div>
-            <div class="wf-hero-tools">
-                <div class="glass-card tool-card">
-                    <div class="wf-orb blue-orb"></div>
-                    <h3>Document Converter</h3>
-                    <p>JPG und PNG hochladen, Reihenfolge prüfen und als sauberes PDF exportieren.</p>
-                    <span class="status-pill"><span class="green-dot"></span>Live verfügbar</span>
-                </div>
-                <div class="glass-card tool-card">
-                    <div class="wf-orb pink-orb"></div>
-                    <h3>Video Tools</h3>
-                    <p>Geplant für Video-Komprimierung, Audio-Export und Format-Workflows.</p>
-                    <span class="status-pill"><span class="pink-dot"></span>Coming soon</span>
-                </div>
-                <div class="glass-card tool-card">
-                    <div class="wf-orb green-orb"></div>
-                    <h3>Security</h3>
-                    <p>Klare Session-Logik, lokale Verarbeitung und optionale Audit-Logs.</p>
-                    <span class="status-pill"><span class="green-dot"></span>Foundation ready</span>
-                </div>
-            </div>
-        </section>
-        """,
-        unsafe_allow_html=True,
-    )
-
-
-def render_tool_selector():
-    c1, c2, c3 = st.columns(3, gap="medium")
-    with c1:
-        if st.button("PDF Workspace öffnen", use_container_width=True):
-            set_tool("pdf")
-    with c2:
-        if st.button("Video Tools öffnen", use_container_width=True):
-            set_tool("video")
-    with c3:
-        if st.button("Security ansehen", use_container_width=True):
-            set_tool("security")
-
-
-# ---------- PDF Logic ----------
-def make_pdf(uploaded_files, page_fit="A4 Portrait", sort_by_name=True):
-    files = list(uploaded_files)
-    if sort_by_name:
-        files = sorted(files, key=lambda f: f.name.lower())
-
-    images = []
-    for file in files:
-        img = Image.open(file)
-        img = ImageOps.exif_transpose(img).convert("RGB")
-
-        if page_fit == "A4 Portrait":
-            canvas = Image.new("RGB", (1240, 1754), "white")
-            img.thumbnail((1120, 1634), Image.Resampling.LANCZOS)
-            canvas.paste(img, ((1240 - img.width) // 2, (1754 - img.height) // 2))
-            img = canvas
-        elif page_fit == "A4 Landscape":
-            canvas = Image.new("RGB", (1754, 1240), "white")
-            img.thumbnail((1634, 1120), Image.Resampling.LANCZOS)
-            canvas.paste(img, ((1754 - img.width) // 2, (1240 - img.height) // 2))
-            img = canvas
-
-        images.append(img)
-
-    pdf_buffer = io.BytesIO()
-    images[0].save(
-        pdf_buffer,
-        format="PDF",
-        save_all=True,
-        append_images=images[1:],
-        resolution=150.0,
-        quality=95,
-    )
-    pdf_buffer.seek(0)
-    return pdf_buffer
-
-
-def render_pdf_workspace():
-    st.markdown(
-        """
-        <div class="glass-card workspace-shell">
-            <div class="workspace-head">
-                <div class="workspace-title">
-                    <div class="wf-orb medium blue-orb"></div>
-                    <div>
-                        <h2><span>PDF</span> Workspace</h2>
-                        <p>Upload, Reihenfolge, Seitenformat und Export in einem Premium-Flow.</p>
-                    </div>
-                </div>
-                <span class="status-pill"><span class="green-dot"></span>Production Module</span>
-            </div>
-        """,
-        unsafe_allow_html=True,
-    )
-
-    left, right = st.columns([1.05, 0.95], gap="large")
+def render_converter() -> None:
+    left, right = st.columns([1.1, 0.9], gap="large")
 
     with left:
-        st.markdown('<div class="glass-card panel">', unsafe_allow_html=True)
-        st.markdown("<h3>Dateien hochladen</h3>", unsafe_allow_html=True)
-
-        uploaded_files = st.file_uploader(
-            "Ziehe deine Bilder hier rein oder wähle Dateien aus",
-            type=["jpg", "jpeg", "png"],
-            accept_multiple_files=True,
-            help="Unterstützt JPG, JPEG und PNG. Mehrere Bilder werden zu einem PDF zusammengeführt.",
+        st.markdown('<div class="wf-card">', unsafe_allow_html=True)
+        st.markdown("<h2>PDF-Konverter</h2>", unsafe_allow_html=True)
+        st.markdown(
+            '<p class="wf-card-subtitle">Ziehe deine Bilder in das Feld oder wähle sie manuell aus.</p>',
+            unsafe_allow_html=True,
         )
 
-        st.markdown("<h3 style='margin-top:20px;'>Einstellungen</h3>", unsafe_allow_html=True)
-        c1, c2 = st.columns(2)
-        with c1:
-            page_fit = st.selectbox("Seitenformat", ["A4 Portrait", "A4 Landscape", "Original"], index=0)
-        with c2:
-            sort_by_name = st.checkbox("Nach Dateiname sortieren", value=True)
+        uploaded_files = st.file_uploader(
+            "Bilder hochladen",
+            type=SUPPORTED_TYPES,
+            accept_multiple_files=True,
+            help=f"Unterstützt: {', '.join(SUPPORTED_TYPES).upper()} · Max. {MAX_FILES} Dateien · max. {MAX_TOTAL_MB} MB gesamt.",
+        )
+
+        warnings, errors = validate_files(uploaded_files)
+        for warning in warnings:
+            st.warning(warning)
+        for error in errors:
+            st.error(error)
 
         if uploaded_files:
-            files_for_display = sorted(uploaded_files, key=lambda f: f.name.lower()) if sort_by_name else uploaded_files
-            total_size_mb = sum(file.size for file in uploaded_files) / (1024 * 1024)
-            st.markdown('<div class="file-list">', unsafe_allow_html=True)
-            for file in files_for_display:
+            total_mb = sum(mb(file.size) for file in uploaded_files)
+            st.markdown(
+                f"""
+                <div class="wf-info-grid">
+                    <div class="wf-info-box"><b>{len(uploaded_files)}</b><span>Dateien</span></div>
+                    <div class="wf-info-box"><b>{total_mb:.1f} MB</b><span>Gesamtgröße</span></div>
+                    <div class="wf-info-box"><b>{SUPPORTED_TYPES[0].upper()}+</b><span>Formate</span></div>
+                </div>
+                """,
+                unsafe_allow_html=True,
+            )
+
+            st.markdown('<div class="wf-file-list">', unsafe_allow_html=True)
+            display_files = uploaded_files[:12]
+            for file in display_files:
                 st.markdown(
-                    f'<div class="file-row"><span>📄 {file.name}</span><span>{file.size / (1024 * 1024):.2f} MB</span></div>',
+                    f'<div class="wf-file-row"><span>{file.name}</span><small>{mb(file.size):.2f} MB</small></div>',
+                    unsafe_allow_html=True,
+                )
+            if len(uploaded_files) > 12:
+                st.markdown(
+                    f'<div class="wf-file-row"><span>+ {len(uploaded_files) - 12} weitere Dateien</span><small>nicht angezeigt</small></div>',
                     unsafe_allow_html=True,
                 )
             st.markdown('</div>', unsafe_allow_html=True)
 
-            st.caption(f"Gesamtgröße: {total_size_mb:.2f} MB · {len(uploaded_files)} Datei(en)")
+        st.markdown("<br>", unsafe_allow_html=True)
+        st.markdown("<h3>Einstellungen</h3>", unsafe_allow_html=True)
 
-            if st.button("PDF erstellen", use_container_width=True):
-                try:
-                    pdf_buffer = make_pdf(uploaded_files, page_fit, sort_by_name)
-                    timestamp = datetime.now().strftime("%Y%m%d_%H%M")
-                    st.success("Dein PDF ist bereit.")
-                    st.download_button(
-                        "PDF herunterladen",
-                        data=pdf_buffer.getvalue(),
-                        file_name=f"wertfile_export_{timestamp}.pdf",
-                        mime="application/pdf",
-                        use_container_width=True,
-                    )
-                except Exception as e:
-                    st.error(f"PDF konnte nicht erstellt werden: {e}")
+        c1, c2 = st.columns(2)
+        with c1:
+            page_format = st.selectbox(
+                "Seitenformat",
+                ["A4 Hochformat", "A4 Querformat", "Letter Hochformat", "Letter Querformat", "Originalgröße"],
+                index=0,
+            )
+        with c2:
+            margin_size = st.selectbox("Rand", ["Normal", "Klein", "Keine", "Groß"], index=0)
+
+        c3, c4 = st.columns(2)
+        with c3:
+            sort_mode = st.selectbox("Reihenfolge", ["Upload-Reihenfolge", "Dateiname A–Z", "Dateiname Z–A"], index=0)
+        with c4:
+            quality_label = st.selectbox("Qualität", ["Hoch", "Ausgewogen", "Kleinere Datei"], index=1)
+
+        quality_map = {"Hoch": 95, "Ausgewogen": 85, "Kleinere Datei": 72}
+        quality = quality_map[quality_label]
+
+        disabled = not uploaded_files or bool(errors)
+
+        if disabled:
+            st.button("PDF erstellen", use_container_width=True, disabled=True)
         else:
-            st.info("Lade mindestens ein Bild hoch, um dein PDF zu erstellen.")
+            if st.button("PDF erstellen", use_container_width=True):
+                with st.spinner("PDF wird erstellt..."):
+                    try:
+                        pdf_bytes = create_pdf(uploaded_files, page_format, margin_size, sort_mode, quality)
+                        timestamp = datetime.now().strftime("%Y%m%d_%H%M")
+                        file_name = f"wertfile_export_{timestamp}.pdf"
+                        st.success("PDF erfolgreich erstellt.")
+                        st.download_button(
+                            "PDF herunterladen",
+                            data=pdf_bytes,
+                            file_name=file_name,
+                            mime="application/pdf",
+                            use_container_width=True,
+                        )
+                    except Exception as exc:
+                        st.error(str(exc))
+
+        if uploaded_files:
+            with st.expander("Originaldateien als ZIP herunterladen"):
+                st.write("Optional: Lade die hochgeladenen Originaldateien gesammelt als ZIP herunter.")
+                zip_bytes = create_uploaded_zip(uploaded_files)
+                st.download_button(
+                    "Originale als ZIP herunterladen",
+                    data=zip_bytes,
+                    file_name=f"wertfile_originale_{datetime.now().strftime('%Y%m%d_%H%M')}.zip",
+                    mime="application/zip",
+                    use_container_width=True,
+                )
 
         st.markdown('</div>', unsafe_allow_html=True)
 
     with right:
-        st.markdown('<div class="glass-card panel">', unsafe_allow_html=True)
-        st.markdown("<h3>Vorschau & Informationen</h3>", unsafe_allow_html=True)
+        st.markdown('<div class="wf-card">', unsafe_allow_html=True)
+        st.markdown("<h2>Vorschau</h2>", unsafe_allow_html=True)
+        st.markdown(
+            '<p class="wf-card-subtitle">Hier siehst du die erste Seite nach Format- und Rand-Einstellung.</p>',
+            unsafe_allow_html=True,
+        )
 
-        if uploaded_files:
-            files_for_preview = sorted(uploaded_files, key=lambda f: f.name.lower()) if sort_by_name else uploaded_files
-            img = Image.open(files_for_preview[0])
-            img = ImageOps.exif_transpose(img)
-            st.image(img, caption=f"Erste Seite: {files_for_preview[0].name}", use_container_width=True)
+        if uploaded_files and not errors:
+            preview_files = list(uploaded_files)
+            if sort_mode == "Dateiname A–Z":
+                preview_files = sorted(preview_files, key=lambda f: f.name.lower())
+            elif sort_mode == "Dateiname Z–A":
+                preview_files = sorted(preview_files, key=lambda f: f.name.lower(), reverse=True)
+
+            try:
+                preview_image = create_preview_image(preview_files[0], page_format, margin_size)
+                st.image(preview_image, caption=f"Erste Seite: {preview_files[0].name}", use_container_width=True)
+            except Exception as exc:
+                st.error(str(exc))
+
             st.markdown(
                 f"""
-                <div class="file-list">
-                    <div class="file-row"><span>Dateien</span><span>{len(uploaded_files)}</span></div>
-                    <div class="file-row"><span>Seitenformat</span><span>{page_fit}</span></div>
-                    <div class="file-row"><span>Verarbeitung</span><span>Session-basiert</span></div>
+                <div class="wf-info-grid">
+                    <div class="wf-info-box"><b>{page_format.split()[0]}</b><span>Format</span></div>
+                    <div class="wf-info-box"><b>{margin_size}</b><span>Rand</span></div>
+                    <div class="wf-info-box"><b>{quality_label}</b><span>Qualität</span></div>
                 </div>
                 """,
                 unsafe_allow_html=True,
@@ -903,11 +672,10 @@ def render_pdf_workspace():
         else:
             st.markdown(
                 """
-                <div class="empty-preview">
+                <div class="wf-preview-empty">
                     <div>
-                        <div class="wf-orb medium pink-orb" style="margin:0 auto 18px auto;"></div>
-                        <h3>Deine Dateien erscheinen hier.</h3>
-                        <p>Sortiere, prüfe die Reihenfolge und exportiere ein sauberes, optimiertes PDF.</p>
+                        <h3>Noch keine Vorschau</h3>
+                        <p>Lade mindestens ein Bild hoch. Danach erscheint hier die Vorschau der ersten PDF-Seite.</p>
                     </div>
                 </div>
                 """,
@@ -916,115 +684,29 @@ def render_pdf_workspace():
 
         st.markdown('</div>', unsafe_allow_html=True)
 
-    st.markdown("</div>", unsafe_allow_html=True)
 
-
-def render_video_workspace():
-    st.markdown(
-        """
-        <div class="glass-card workspace-shell">
-            <div class="workspace-head">
-                <div class="workspace-title">
-                    <div class="wf-orb medium pink-orb"></div>
-                    <div>
-                        <h2><span>Video</span> Tools</h2>
-                        <p>Vorbereitet für Komprimierung, Audio-Export und Format-Workflows.</p>
-                    </div>
-                </div>
-                <span class="status-pill"><span class="pink-dot"></span>Coming soon</span>
-            </div>
-        """,
-        unsafe_allow_html=True,
-    )
-
-    left, right = st.columns([1, 1], gap="large")
-    with left:
-        st.markdown('<div class="glass-card panel">', unsafe_allow_html=True)
-        st.markdown("<h3>Video Workflow</h3>", unsafe_allow_html=True)
-        st.text_input("Video URL", placeholder="https://www.example.com/video")
-        st.selectbox("Zielformat", ["MP3 Audio", "MP4 Video", "Compressed MP4", "WebM"])
-        st.selectbox("Qualität", ["High", "Balanced", "Small File"])
-        if st.button("Workflow vorbereiten", use_container_width=True):
-            st.warning("Backend noch nicht verbunden. Die UI ist vorbereitet.")
-        st.markdown('</div>', unsafe_allow_html=True)
-
-    with right:
+def render_test_plan() -> None:
+    with st.expander("Testplan für Wertfile 1.0"):
         st.markdown(
             """
-            <div class="glass-card panel">
-                <h3>Geplante Pipeline</h3>
-                <div class="empty-preview">
-                    <div>
-                        <div class="wf-orb medium pink-orb" style="margin:0 auto 18px auto;"></div>
-                        <h3>Sauberer Backend-Flow</h3>
-                        <p>Upload prüfen → Job Queue → ffmpeg → Download Token → Auto Delete.</p>
-                    </div>
-                </div>
+            <div class="wf-test-card">
+                <b>Bitte lokal testen:</b>
+                <ul>
+                    <li>1 JPG hochladen → PDF erstellen → Download öffnen</li>
+                    <li>3 Bilder hochladen → Reihenfolge prüfen → PDF öffnen</li>
+                    <li>PNG und WEBP testen</li>
+                    <li>A4 Hochformat und A4 Querformat testen</li>
+                    <li>Rand: Keine / Klein / Normal / Groß testen</li>
+                    <li>Ohne Datei prüfen: Button muss deaktiviert sein</li>
+                    <li>Sehr große Datei testen: Fehlermeldung muss erscheinen</li>
+                </ul>
             </div>
             """,
             unsafe_allow_html=True,
         )
 
-    st.markdown("</div>", unsafe_allow_html=True)
 
-
-def render_security_workspace():
+def render_footer() -> None:
     st.markdown(
-        """
-        <div class="glass-card workspace-shell">
-            <div class="workspace-head">
-                <div class="workspace-title">
-                    <div class="wf-orb medium green-orb"></div>
-                    <div>
-                        <h2><span>Security</span> Layer</h2>
-                        <p>Vertrauen, Datenschutz und saubere File-Verarbeitung als Produktbasis.</p>
-                    </div>
-                </div>
-                <span class="status-pill"><span class="green-dot"></span>Foundation ready</span>
-            </div>
-            <div class="workspace-grid">
-                <div class="glass-card panel">
-                    <div class="wf-orb green-orb"></div>
-                    <h3>Session-basiert</h3>
-                    <p style="color:#64748B !important;">Dateien werden aktuell nur während der Session verarbeitet und nicht dauerhaft gespeichert.</p>
-                </div>
-                <div class="glass-card panel">
-                    <div class="wf-orb blue-orb"></div>
-                    <h3>Audit-ready</h3>
-                    <p style="color:#64748B !important;">Später möglich: Verarbeitungsprotokolle, Löschfristen, Nutzerrollen und Export-Historie.</p>
-                </div>
-            </div>
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
-
-
-def render_footer():
-    st.markdown(
-        """
-        <div class="wf-footer">
-            <div class="wf-footer-item">🔒 DSGVO-konform gedacht</div>
-            <div class="wf-footer-item">⚡ Schnelle Verarbeitung</div>
-            <div class="wf-footer-item">🧾 Audit-ready Roadmap</div>
-            <div class="wf-footer-item">🇩🇪 Produktidee Germany</div>
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
-
-
-# ---------- Render ----------
-inject_css()
-render_nav()
-render_hero()
-render_tool_selector()
-
-if st.session_state.active_tool == "pdf":
-    render_pdf_workspace()
-elif st.session_state.active_tool == "video":
-    render_video_workspace()
-else:
-    render_security_workspace()
-
-render_footer()
+        f'<div class="wf-footer">{APP_NAME}. Technology Germany · Dateien werden in dieser Session verarbeitet und nicht bewusst dauerhaft gespeichert.</div>',
+        unsafe_allow_html=T
