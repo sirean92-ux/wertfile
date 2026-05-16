@@ -53,6 +53,10 @@ workspace_from_url = st.query_params.get("workspace")
 if workspace_from_url in ["home", "pdf", "video", "image", "office"]:
     st.session_state.active_workspace = workspace_from_url
 
+pdf_tool_from_url = st.query_params.get("pdf_tool")
+if pdf_tool_from_url in ["image_to_pdf", "pdf_to_word", "pdf_merge", "pdf_split"]:
+    st.session_state.active_pdf_tool = pdf_tool_from_url
+
 
 # ---------- CSS ----------
 def inject_css() -> None:
@@ -345,9 +349,16 @@ def inject_css() -> None:
             background: #FFFFFF;
             border: 1px solid var(--line);
             border-radius: 20px;
-            padding: 14px;
+            padding: 18px;
             box-shadow: 0 10px 28px rgba(15,23,42,0.04);
-            min-height: 78px;
+            min-height: 132px;
+            transition: transform .22s ease, box-shadow .22s ease, border-color .22s ease;
+        }
+
+        .wf-tool-box:hover {
+            transform: translateY(-4px);
+            box-shadow: var(--shadow-hover);
+            cursor: pointer;
         }
 
         .wf-tool-box.active-blue { background: linear-gradient(145deg, #FFFFFF, var(--blue-soft)); border-color: rgba(37,99,235,0.34); }
@@ -355,8 +366,8 @@ def inject_css() -> None:
         .wf-tool-box.active-green { background: linear-gradient(145deg, #FFFFFF, var(--green-soft)); border-color: rgba(16,185,129,0.34); }
         .wf-tool-box.active-orange { background: linear-gradient(145deg, #FFFFFF, var(--orange-soft)); border-color: rgba(249,115,22,0.34); }
 
-        .wf-tool-box b { display: block; font-size: 14px; margin-bottom: 4px; }
-        .wf-tool-box span { color: var(--muted) !important; font-size: 12px; font-weight: 650; }
+        .wf-tool-box b { display: block; font-size: 16px; margin-bottom: 6px; }
+        .wf-tool-box span { color: var(--muted) !important; font-size: 13px; font-weight: 650; }
 
         .wf-card {
             background: rgba(255,255,255,0.94);
@@ -864,21 +875,24 @@ def render_pdf_tool_selector() -> None:
     }
     st.markdown(
         f"""
-        <div class="wf-section-title"><div><h2>PDF Tools</h2><p>Bestehende stabile Werkzeuge. PDF Compress folgt als nächstes.</p></div></div>
+        <div class="wf-section-title"><div><h2>PDF Tools</h2><p>Klicke direkt auf ein Tool. Darunter öffnet sich nur die aktive Funktion.</p></div></div>
         <div class="wf-tool-strip">
-            <div class="wf-tool-box {cls['image_to_pdf']}"><b>Bild → PDF</b><span>JPG, PNG oder WEBP als PDF.</span></div>
-            <div class="wf-tool-box {cls['pdf_to_word']}"><b>PDF → Word</b><span>Text-PDFs als DOCX.</span></div>
-            <div class="wf-tool-box {cls['pdf_merge']}"><b>PDF Merge</b><span>Mehrere PDFs zusammenführen.</span></div>
-            <div class="wf-tool-box {cls['pdf_split']}"><b>PDF Split</b><span>Seitenbereich exportieren.</span></div>
+            <a class="wf-workspace-link" href="?workspace=pdf&pdf_tool=image_to_pdf" target="_self">
+                <div class="wf-tool-box {cls['image_to_pdf']}"><b>Bild → PDF</b><span>JPG, PNG oder WEBP als PDF.</span><span class="wf-card-cta">Auswählen →</span></div>
+            </a>
+            <a class="wf-workspace-link" href="?workspace=pdf&pdf_tool=pdf_to_word" target="_self">
+                <div class="wf-tool-box {cls['pdf_to_word']}"><b>PDF → Word</b><span>Text-PDFs als DOCX.</span><span class="wf-card-cta">Auswählen →</span></div>
+            </a>
+            <a class="wf-workspace-link" href="?workspace=pdf&pdf_tool=pdf_merge" target="_self">
+                <div class="wf-tool-box {cls['pdf_merge']}"><b>PDF Merge</b><span>Mehrere PDFs zusammenführen.</span><span class="wf-card-cta">Auswählen →</span></div>
+            </a>
+            <a class="wf-workspace-link" href="?workspace=pdf&pdf_tool=pdf_split" target="_self">
+                <div class="wf-tool-box {cls['pdf_split']}"><b>PDF Split</b><span>Seitenbereich exportieren.</span><span class="wf-card-cta">Auswählen →</span></div>
+            </a>
         </div>
         """,
         unsafe_allow_html=True,
     )
-    labels = ["Bild → PDF", "PDF → Word", "PDF Merge", "PDF Split"]
-    tool_map = {"Bild → PDF": "image_to_pdf", "PDF → Word": "pdf_to_word", "PDF Merge": "pdf_merge", "PDF Split": "pdf_split"}
-    reverse_map = {v: k for k, v in tool_map.items()}
-    selected = st.radio("PDF Tool auswählen", labels, index=labels.index(reverse_map.get(active, "Bild → PDF")), horizontal=True, label_visibility="collapsed")
-    st.session_state.active_pdf_tool = tool_map[selected]
 
 
 def render_coming_soon_workspace(title: str, subtitle: str, tags: List[str], orb_class: str) -> None:
